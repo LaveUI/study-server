@@ -1,0 +1,320 @@
+import express from "express";
+import cors from "cors";
+import http from "http";
+import { Server } from "socket.io";
+import crypto from "crypto";
+import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
+import { OAuth2Client } from "google-auth-library";
+import dotenv from "dotenv";
+
+import { connectDB } from "./db.js";
+import Room from "./models/Room.js";
+import Message from "./models/Message.js";
+
+/* ---------------- Setup ---------------- */
+
+dotenv.config();
+connectDB();
+
+const app = express();
+const server = http.createServer(app);
+
+const io = new Server(server, {
+  cors: {
+    origin: "http://127.0.0.1:5500",
+    methods: ["GET", "POST"],
+  },
+});
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+app.use(cors());
+app.use(express.json());
+
+const PORT = 5000;
+
+/* ---------------- In-memory Stores ---------------- */
+
+const timers = {};
+const onlineUsers = {};
+
+/* ---------------- REST API ---------------- */
+
+app.get("/", (req, res) => {
+  res.send("Study Server backend running 🚀");
+});
+
+/* ---------- Get Public Rooms ---------- */
+
+app.get("/rooms", async (req, res) => {
+  try {
+    const rooms = await Room.find({ type: "public" });
+    res.json(rooms);
+  } catch {
+    res.status(500).json({ error: "Failed to load rooms" });
+  }
+});
+
+/* ---------- Create Room (Host Enabled) ---------- */
+
+app.post("/rooms", async (req, res) => {
+  try {
+    const { name, type, host } = req.body;
+
+    if (!name || !type || !host) {
+      return res.status(400).json({ error: "name, type and host required" });
+    }
+
+    const room = await Room.create({
+      name,
+      type,
+      host, // 👈 HOST STORED
+      inviteCode:
+        type === "private"
+          ? crypto.randomBytes(4).toString("hex")
+          : null,
+    });
+
+    res.status(201).json(room);
+  } catch {
+    res.status(500).json({ error: "Room creation failed" });
+  }
+});
+
+/* ---------- Invite Lookup ---------- */
+
+app.get("/rooms/invite/:code", async (req, res) => {
+  try {
+    const room = await Room.findOne({
+      type: "private",
+      inviteCode: req.params.code,
+    });
+
+    if (!room) {
+      return res.status(404).json({ error: "Invalid invite link" });
+    }
+
+    res.json(room);
+  } catch {
+    res.status(500).json({ error: "Invite lookup failed" });
+  }
+});
+
+/* ---------------- Google Auth ---------------- */
+
+app.post("/auth/google", async (req, res) => {
+  try {
+    const { credential } = req.body;
+
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+
+    const user = {
+      name: payload.name,
+      email: payload.email,
+      picture: payload.picture,
+    };
+
+    const token = jwt.sign(user, process.env.JWT_SECRET, {
+      expiresIn: "7d",
+    });
+
+    res.json({ token, user });
+  } catch {
+    res.status(401).json({ error: "Invalid Google token" });
+  }
+});
+
+/* ---------------- Socket Auth ---------------- */
+
+io.use((socket, next) => {
+  const token = socket.handshake.auth?.token;
+
+  if (!token) return next(new Error("Authentication required"));
+
+  try {
+    const user = jwt.verify(token, process.env.JWT_SECRET);
+    socket.user = user;
+    next();
+  } catch {
+    next(new Error("Invalid token"));
+  }
+});
+
+/* ---------------- Socket.IO ---------------- */
+
+io.on("connection", (socket) => {
+  console.log("🟢 Connected:", socket.user.name);
+
+  /* ================= JOIN ROOM ================= */
+
+  socket.on("join-room", async ({ roomId }) => {
+    try {
+      if (!roomId || !mongoose.Types.ObjectId.isValid(roomId)) return;
+
+      const room = await Room.findById(roomId);
+      if (!room) return;
+
+      socket.join(roomId);
+      socket.roomId = roomId;
+
+      // 👇 HOST CHECK
+      socket.isHost = room.host === socket.user.email;
+
+      /* ----- Presence ----- */
+
+      if (!onlineUsers[roomId]) {
+        onlineUsers[roomId] = new Set();
+      }
+
+      onlineUsers[roomId].add(socket.user.name);
+
+      io.to(roomId).emit("presence-update", {
+        users: Array.from(onlineUsers[roomId]),
+        count: onlineUsers[roomId].size,
+      });
+
+      /* ----- Send Chat History ----- */
+
+      const messages = await Message.find({ roomId })
+        .sort({ createdAt: 1 })
+        .limit(50);
+
+      socket.emit("chat-history", messages);
+
+    } catch (err) {
+      console.error("Join room error:", err);
+    }
+  });
+
+  /* ================= VIDEO SIGNALING ================= */
+
+  socket.on("video-ready", ({ roomId }) => {
+    socket.to(roomId).emit("video-ready", {
+      sender: socket.id,
+    });
+  });
+
+  socket.on("video-offer", ({ offer, target }) => {
+    io.to(target).emit("video-offer", {
+      offer,
+      sender: socket.id,
+    });
+  });
+
+  socket.on("video-answer", ({ answer, target }) => {
+    io.to(target).emit("video-answer", {
+      answer,
+      sender: socket.id,
+    });
+  });
+
+  socket.on("ice-candidate", ({ candidate, target }) => {
+    io.to(target).emit("ice-candidate", {
+      candidate,
+      sender: socket.id,
+    });
+  });
+
+  /* ================= CHAT ================= */
+
+  socket.on("chat-message", async ({ roomId, message }) => {
+    try {
+      if (!roomId || !mongoose.Types.ObjectId.isValid(roomId)) return;
+      if (!message) return;
+
+      const savedMessage = await Message.create({
+        roomId,
+        user: socket.user.name,
+        message: message.trim(),
+      });
+
+      io.to(roomId).emit("chat-message", {
+        user: savedMessage.user,
+        message: savedMessage.message,
+        createdAt: savedMessage.createdAt,
+      });
+    } catch (err) {
+      console.error("Chat error:", err);
+    }
+  });
+
+  /* ================= HOST CONTROLS ================= */
+
+  socket.on("mute-all", ({ roomId }) => {
+    if (!socket.isHost) return;
+    io.to(roomId).emit("force-mute");
+  });
+
+  /* ================= TIMER (HOST ONLY) ================= */
+
+  socket.on("timer-start", ({ roomId }) => {
+    if (!socket.isHost) return;
+
+    if (!timers[roomId]) {
+      timers[roomId] = { timeLeft: 25 * 60, running: false };
+    }
+
+    if (timers[roomId].running) return;
+
+    timers[roomId].running = true;
+
+    timers[roomId].interval = setInterval(() => {
+      timers[roomId].timeLeft--;
+
+      io.to(roomId).emit("timer-update", {
+        timeLeft: timers[roomId].timeLeft,
+      });
+
+      if (timers[roomId].timeLeft <= 0) {
+        clearInterval(timers[roomId].interval);
+        timers[roomId].running = false;
+      }
+    }, 1000);
+  });
+
+  socket.on("timer-reset", ({ roomId }) => {
+    if (!socket.isHost) return;
+    if (!timers[roomId]) return;
+
+    clearInterval(timers[roomId].interval);
+    timers[roomId] = { timeLeft: 25 * 60, running: false };
+
+    io.to(roomId).emit("timer-update", {
+      timeLeft: timers[roomId].timeLeft,
+    });
+  });
+
+  /* ================= DISCONNECT ================= */
+
+  socket.on("disconnect", () => {
+    const { roomId } = socket;
+    if (!roomId) return;
+
+    if (onlineUsers[roomId]) {
+      onlineUsers[roomId].delete(socket.user.name);
+
+      io.to(roomId).emit("presence-update", {
+        users: Array.from(onlineUsers[roomId]),
+        count: onlineUsers[roomId].size,
+      });
+
+      if (onlineUsers[roomId].size === 0) {
+        delete onlineUsers[roomId];
+      }
+    }
+
+    console.log("🔴 Disconnected:", socket.user.name);
+  });
+});
+
+/* ---------------- Start Server ---------------- */
+
+server.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
+});
