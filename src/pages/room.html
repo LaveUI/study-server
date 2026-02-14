@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Study Room — Study Server</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+
+<body>
+
+  <!-- ================= MAIN DISCORD LAYOUT ================= -->
+  <div class="discord-room">
+
+    <!-- ===== LEFT: PARTICIPANTS SIDEBAR ===== -->
+    <aside class="participants-panel">
+      <div class="panel-header">
+        <h4>Participants</h4>
+        <p id="online-count" class="muted">Online: 0</p>
+      </div>
+
+      <ul id="participants-list"></ul>
+    </aside>
+
+
+    <!-- ===== CENTER: VIDEO STAGE ===== -->
+    <div class="stage-area">
+
+      <div class="stage-header">
+        <h2>📚 Study Room</h2>
+        <div class="stage-actions">
+          <span id="room-type" class="muted"></span>
+          <button onclick="toggleTheme()">🌗</button>
+        </div>
+      </div>
+
+      <!-- Invite Box -->
+      <div id="invite-box" class="invite-box" style="display:none;">
+        <input id="invite-link" readonly />
+        <button onclick="copyInvite()">Copy Invite</button>
+      </div>
+
+      <!-- Video Grid -->
+      <div id="video-grid" class="video-grid"></div>
+
+    </div>
+
+
+    <!-- ===== RIGHT: CHAT PANEL ===== -->
+    <aside class="chat-panel">
+
+      <div class="chat-header">
+        <h4>💬 Room Chat</h4>
+      </div>
+
+      <div id="messages" class="messages"></div>
+
+      <div id="typing-indicator" class="muted typing-indicator"></div>
+
+      <div class="chat-input-wrapper">
+        <input
+          id="chat-input"
+          placeholder="Message Study Room"
+          autocomplete="off"
+        />
+      </div>
+
+    </aside>
+
+  </div>
+
+
+  <!-- ================= FLOATING CONTROLS ================= -->
+  <div class="floating-controls">
+
+    <button onclick="toggleMic()">🎤</button>
+    <button onclick="toggleCamera()">📷</button>
+    <button onclick="shareScreen()">🖥</button>
+
+    <!-- 🎨 Background Customization Button -->
+    <button onclick="toggleBgPanel()">🎨</button>
+
+    <div class="timer-mini">
+      <span id="timer">25:00</span>
+      <button onclick="startTimer()">▶</button>
+      <button onclick="resetTimer()">⟳</button>
+    </div>
+
+    <div class="music-mini">
+      <button onclick="toggleMusic()">🎧</button>
+      <audio id="lofi" loop>
+        <source src="../assets/lofi.mp3" type="audio/mpeg" />
+      </audio>
+    </div>
+
+  </div>
+
+
+  <!-- ================= BACKGROUND PANEL ================= -->
+  <div id="bg-panel" class="bg-panel">
+
+    <div class="bg-option bg-default"
+         onclick="setBackground('bg-default')"></div>
+
+    <div class="bg-option bg-gradient"
+         onclick="setBackground('bg-gradient')"></div>
+
+    <div class="bg-option bg-purple"
+         onclick="setBackground('bg-purple')"></div>
+
+    <div class="bg-option bg-sunset"
+         onclick="setBackground('bg-sunset')"></div>
+
+    <div class="bg-option bg-green"
+         onclick="setBackground('bg-green')"></div>
+
+  </div>
+
+
+  <!-- ================= SCRIPTS ================= -->
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script src="../js/theme.js"></script>
+  <script src="../js/room.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Dashboard — Study Server</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+
+<body class="dashboard-page">
+
+  <!-- ================= HEADER ================= -->
+  <header class="dashboard-header-modern">
+
+    <div class="brand">
+      <h3>📚 Study Server</h3>
+    </div>
+
+    <div class="header-right">
+
+      <div class="user-mini" onclick="openProfile()">
+        <img id="header-avatar">
+        <span id="user-name"></span>
+      </div>
+
+      <button onclick="logout()">🚪</button>
+      <button onclick="toggleTheme()">🌗</button>
+
+    </div>
+
+  </header>
+
+
+  <!-- ================= MAIN ================= -->
+  <main class="dashboard-modern">
+
+    <!-- Welcome Section -->
+    <section class="dashboard-welcome">
+
+      <div>
+        <h1 id="welcome-text">Welcome 👋</h1>
+        <p class="muted">
+          Create or join a room and start focusing.
+        </p>
+      </div>
+
+      <button id="createRoom" class="primary-btn">
+        ➕ Create Room
+      </button>
+
+    </section>
+
+
+    <!-- Rooms Section -->
+    <section class="rooms-section">
+
+      <div class="rooms-header">
+        <h3>Available Public Rooms</h3>
+      </div>
+
+      <div id="roomsList" class="rooms-grid"></div>
+
+    </section>
+
+  </main>
+
+
+  <!-- ================= PROFILE DRAWER ================= -->
+
+  <div id="profile-overlay" class="profile-overlay" onclick="closeProfile()"></div>
+
+  <div id="profile-drawer" class="profile-drawer">
+
+    <div class="profile-header">
+      <h3>Your Profile</h3>
+    </div>
+
+    <div class="profile-content">
+
+      <div class="profile-avatar">
+        <img id="profile-pic" />
+      </div>
+
+      <label>Name</label>
+      <input id="profile-name" class="profile-input" disabled />
+
+      <label>Role</label>
+      <select id="profile-role" class="profile-input">
+        <option value="School Student">School Student</option>
+        <option value="College Student">College Student</option>
+        <option value="Professional">Professional</option>
+      </select>
+
+      <label>Interests</label>
+      <input id="profile-interests"
+             class="profile-input"
+             placeholder="Coding, UPSC, Physics..." />
+
+      <button onclick="saveProfile()" class="primary-btn">
+        Save Changes
+      </button>
+
+    </div>
+
+  </div>
+
+
+  <!-- ================= SCRIPTS ================= -->
+
+  <script src="../js/dashboard.js"></script>
+  <script src="../js/theme.js"></script>
+
+  <script>
+    const user = JSON.parse(localStorage.getItem("user"));
+
+    if (!user) {
+      window.location.href = "login.html";
+    }
+
+    if (user) {
+      document.getElementById("user-name").textContent = user.name;
+      document.getElementById("welcome-text").textContent =
+        `Welcome back, ${user.name} 👋`;
+
+      document.getElementById("header-avatar").src = user.picture;
+      document.getElementById("profile-pic").src = user.picture;
+      document.getElementById("profile-name").value = user.name;
+    }
+
+    function logout() {
+      localStorage.clear();
+      window.location.href = "login.html";
+    }
+
+    function openProfile() {
+      document.getElementById("profile-overlay").classList.add("active");
+      document.getElementById("profile-drawer").classList.add("active");
+
+      const savedProfile =
+        JSON.parse(localStorage.getItem("profile")) || {};
+
+      document.getElementById("profile-role").value =
+        savedProfile.role || "College Student";
+
+      document.getElementById("profile-interests").value =
+        savedProfile.interests || "";
+    }
+
+    function closeProfile() {
+      document.getElementById("profile-overlay").classList.remove("active");
+      document.getElementById("profile-drawer").classList.remove("active");
+    }
+
+    function saveProfile() {
+      const profileData = {
+        role: document.getElementById("profile-role").value,
+        interests: document.getElementById("profile-interests").value
+      };
+
+      localStorage.setItem("profile", JSON.stringify(profileData));
+      closeProfile();
+    }
+  </script>
+
+</body>
+</html>

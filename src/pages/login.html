@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Login — Study Server</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+
+<body class="auth-page">
+
+  <div class="auth-container">
+
+    <div class="auth-left">
+      <h1>📚 Study Server</h1>
+      <p>Study together. Stay focused. Grow smarter.</p>
+    </div>
+
+    <div class="auth-card">
+      <h2>Welcome Back</h2>
+      <p class="muted">Sign in to continue</p>
+
+      <div
+        id="g_id_onload"
+        data-client_id="726866421270-5m4moe82ikvgkdop4hkbdrtk57n4eko2.apps.googleusercontent.com"
+        data-callback="handleGoogleLogin"
+        data-auto_prompt="false">
+      </div>
+
+      <div
+        class="g_id_signin"
+        data-type="standard"
+        data-size="large"
+        data-theme="outline"
+        data-text="sign_in_with"
+        data-shape="pill"
+        data-logo_alignment="left">
+      </div>
+
+    </div>
+
+  </div>
+
+  <script src="../js/auth.js"></script>
+
+</body>
+</html>
+
+
+
+
+
+
+

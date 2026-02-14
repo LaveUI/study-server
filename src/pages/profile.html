@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Profile — Study Server</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+
+<body>
+
+  <!-- Top Bar -->
+  <header class="top-bar glass">
+    <h3>👤 Profile</h3>
+    <div style="display:flex; gap:10px;">
+      <button onclick="toggleTheme()">🌗</button>
+      <button onclick="logout()">🚪 Logout</button>
+    </div>
+  </header>
+
+  <!-- Profile Card -->
+  <main style="display:flex; justify-content:center; margin-top:40px;">
+    <section class="glass" style="width:420px; padding:20px; display:flex; flex-direction:column; gap:12px;">
+
+      <label class="muted">Name</label>
+      <input id="name" disabled class="profile-input" />
+
+      <label class="muted">Role</label>
+      <select id="role" class="profile-input">
+        <option>School Student</option>
+        <option>College Student</option>
+        <option>Professional</option>
+      </select>
+
+      <label class="muted">Interests</label>
+      <input
+        id="interests"
+        class="profile-input"
+        placeholder="e.g. DSA, AI, Web Dev"
+      />
+
+      <button onclick="saveProfile()">💾 Save Profile</button>
+
+    </section>
+  </main>
+
+  <script src="../js/theme.js"></script>
+  <script src="../js/profile.js"></script>
+
+</body>
+</html>
