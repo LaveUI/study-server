@@ -38,6 +38,8 @@ const PORT = 5000;
 
 const timers = {};
 const onlineUsers = {};
+let pomodoroTimers = {};
+
 
 /* ---------------- REST API ---------------- */
 
@@ -251,44 +253,135 @@ io.on("connection", (socket) => {
     io.to(roomId).emit("force-mute");
   });
 
-  /* ================= TIMER (HOST ONLY) ================= */
+/* ================= TIMER ================= */
+/* ================= POMODORO TIMER ================= */
 
-  socket.on("timer-start", ({ roomId }) => {
-    if (!socket.isHost) return;
+socket.on("pomodoro-start", ({ roomId, focus, breakTime }) => {
 
-    if (!timers[roomId]) {
-      timers[roomId] = { timeLeft: 25 * 60, running: false };
-    }
+  if (!roomId || !focus || !breakTime) return;
 
-    if (timers[roomId].running) return;
+  // Clear existing timer
+  if (pomodoroTimers[roomId]) {
+    clearInterval(pomodoroTimers[roomId].interval);
+  }
 
-    timers[roomId].running = true;
+  let timeLeft = focus;
+  let phase = "focus";
 
-    timers[roomId].interval = setInterval(() => {
-      timers[roomId].timeLeft--;
+  // Store timer state
+  pomodoroTimers[roomId] = {
+    focus,
+    breakTime,
+    timeLeft,
+    phase,
+    interval: null
+  };
 
-      io.to(roomId).emit("timer-update", {
-        timeLeft: timers[roomId].timeLeft,
-      });
-
-      if (timers[roomId].timeLeft <= 0) {
-        clearInterval(timers[roomId].interval);
-        timers[roomId].running = false;
-      }
-    }, 1000);
+  // Immediately send first update (no delay)
+  io.to(roomId).emit("pomodoro-update", {
+    timeLeft,
+    phase
   });
 
-  socket.on("timer-reset", ({ roomId }) => {
-    if (!socket.isHost) return;
-    if (!timers[roomId]) return;
+  pomodoroTimers[roomId].interval = setInterval(() => {
 
-    clearInterval(timers[roomId].interval);
-    timers[roomId] = { timeLeft: 25 * 60, running: false };
+    timeLeft--;
+    pomodoroTimers[roomId].timeLeft = timeLeft;
+
+    if (timeLeft <= 0) {
+
+      if (phase === "focus") {
+        phase = "break";
+        timeLeft = breakTime;
+      } else {
+        phase = "focus";
+        timeLeft = focus;
+      }
+
+      pomodoroTimers[roomId].phase = phase;
+      pomodoroTimers[roomId].timeLeft = timeLeft;
+    }
+
+    io.to(roomId).emit("pomodoro-update", {
+      timeLeft,
+      phase
+    });
+
+  }, 1000);
+});
+
+
+/* ================= STOP POMODORO ================= */
+
+socket.on("pomodoro-stop", ({ roomId }) => {
+
+  if (!roomId || !pomodoroTimers[roomId]) return;
+
+  clearInterval(pomodoroTimers[roomId].interval);
+  delete pomodoroTimers[roomId];
+
+  io.to(roomId).emit("pomodoro-stopped");
+});
+
+/* ================= STOP TIMER ================= */
+
+
+socket.on("timer-start", ({ roomId, duration }) => {
+
+  if (!roomId || !duration) return;
+
+  if (!timers[roomId]) {
+    timers[roomId] = {};
+  }
+
+  if (timers[roomId].running) return;
+
+  timers[roomId] = {
+    timeLeft: duration,
+    running: true
+  };
+
+  timers[roomId].interval = setInterval(() => {
+
+    timers[roomId].timeLeft--;
 
     io.to(roomId).emit("timer-update", {
       timeLeft: timers[roomId].timeLeft,
+      running: true
     });
+
+    if (timers[roomId].timeLeft <= 0) {
+
+      clearInterval(timers[roomId].interval);
+
+      timers[roomId].running = false;
+
+      io.to(roomId).emit("timer-update", {
+        timeLeft: 0,
+        running: false
+      });
+    }
+
+  }, 1000);
+});
+
+socket.on("timer-reset", ({ roomId }) => {
+
+  if (!roomId || !timers[roomId]) return;
+
+  clearInterval(timers[roomId].interval);
+
+  timers[roomId] = {
+    timeLeft: 25 * 60,
+    running: false
+  };
+
+  io.to(roomId).emit("timer-update", {
+    timeLeft: timers[roomId].timeLeft,
+    running: false
   });
+});
+
 
   /* ================= DISCONNECT ================= */
 
@@ -305,9 +398,18 @@ io.on("connection", (socket) => {
       });
 
       if (onlineUsers[roomId].size === 0) {
+
+  // 🔥 Clear Pomodoro if room empty
+        if (pomodoroTimers[roomId]) {
+          clearInterval(pomodoroTimers[roomId].interval);
+          delete pomodoroTimers[roomId];
+        }
+
         delete onlineUsers[roomId];
       }
+
     }
+    
 
     console.log("🔴 Disconnected:", socket.user.name);
   });
