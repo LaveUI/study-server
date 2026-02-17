@@ -1,6 +1,12 @@
 /* =====================================================
    THEME VARIABLES
 ===================================================== */
+html, body {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
 
 :root {
   --bg: #0f0f12;
@@ -308,38 +314,107 @@ input::placeholder {
    PROFILE DRAWER
 ===================================================== */
 
-.profile-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.5);
-  backdrop-filter: blur(4px);
-  opacity: 0;
-  visibility: hidden;
-  transition: 0.3s ease;
-  z-index: 300;
-}
-
-.profile-overlay.active {
-  opacity: 1;
-  visibility: visible;
-}
+/* ================= PROFILE DRAWER MODERN ================= */
 
 .profile-drawer {
-  position: fixed;
-  top: 0;
-  right: -400px;
-  width: 360px;
-  height: 100vh;
-  background: var(--panel);
-  border-left: 1px solid var(--border);
-  padding: 30px;
-  transition: 0.35s ease;
-  z-index: 400;
+  width: 380px;
+  padding: 25px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
-.profile-drawer.active {
-  right: 0;
+.profile-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
+
+.profile-header h3 {
+  margin: 0;
+}
+
+.close-btn {
+  cursor: pointer;
+  font-size: 18px;
+  opacity: 0.7;
+  transition: 0.2s ease;
+}
+
+.close-btn:hover {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.profile-avatar-wrapper {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+
+.profile-avatar-img {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  object-fit: cover;
+  z-index: 2;
+}
+
+.avatar-ring {
+  position: absolute;
+  width: 125px;
+  height: 125px;
+  border-radius: 50%;
+  background: linear-gradient(45deg, #7c3aed, #2563eb);
+  z-index: 1;
+  filter: blur(18px);
+  opacity: 0.5;
+}
+
+.profile-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.profile-section label {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.profile-section input,
+.profile-section select {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  color: var(--text);
+  transition: 0.2s ease;
+}
+
+.profile-section input:focus,
+.profile-section select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.save-profile-btn {
+  margin-top: 15px;
+  background: linear-gradient(45deg, #7c3aed, #2563eb);
+  border: none;
+  padding: 12px;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.25s ease;
+}
+
+.save-profile-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(124,58,237,0.4);
+}
+
 
 /* =====================================================
    BACKGROUND SELECTOR PANEL
@@ -461,4 +536,344 @@ input::placeholder {
   font-size: 42px;
   font-weight: bold;
   color: white;
+}
+
+/* ================= MODERN LOGIN ================= */
+
+.auth-modern {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0f172a, #1e293b);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: Inter, sans-serif;
+}
+
+.auth-wrapper-modern {
+  width: 1000px;
+  max-width: 95%;
+  display: grid;
+  grid-template-columns: 1fr 460px;
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: 0 50px 120px rgba(0,0,0,0.6);
+}
+
+/* Left Branding */
+.auth-brand-modern {
+  background: linear-gradient(135deg, #5865f2, #7c3aed);
+  padding: 70px 60px;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.auth-brand-modern h1 {
+  font-size: 2.6rem;
+  margin-bottom: 15px;
+}
+
+.auth-brand-modern p {
+  opacity: 0.9;
+  margin-bottom: 30px;
+}
+
+.feature-list div {
+  margin-bottom: 12px;
+  font-size: 0.95rem;
+  opacity: 0.95;
+}
+
+/* Right Card */
+.auth-card-modern {
+  background: #1a1b1f;
+  padding: 70px 50px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.auth-card-modern h2 {
+  margin-bottom: 8px;
+}
+
+.google-wrapper {
+  margin-top: 25px;
+}
+
+.login-footer {
+  margin-top: 30px;
+  font-size: 0.8rem;
+  opacity: 0.6;
+  text-align: center;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .auth-wrapper-modern {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-brand-modern {
+    display: none;
+  }
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+/* User chip */
+.user-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--panel-2);
+  padding: 6px 14px;
+  border-radius: 40px;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.user-chip:hover {
+  background: var(--accent);
+  color: white;
+}
+
+.chip-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.chip-info {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.85rem;
+  line-height: 1.1;
+}
+
+/* Logout */
+.danger-btn {
+  background: #2a2a2f;
+  color: #ff5c5c;
+  border-radius: 30px;
+  padding: 8px 18px;
+  font-weight: 500;
+  transition: 0.2s ease;
+}
+
+.danger-btn:hover {
+  background: #ff5c5c;
+  color: white;
+}
+
+/* ================= PROFILE OVERLAY ================= */
+
+.profile-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(5px);
+  opacity: 0;
+  visibility: hidden;
+  transition: 0.3s ease;
+  z-index: 999;
+}
+
+.profile-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+
+/* ================= PROFILE DRAWER ================= */
+
+.profile-drawer {
+  position: fixed;
+  top: 0;
+  right: -420px;
+  width: 380px;
+  height: 100vh;
+  background: #111827;
+  padding: 40px 30px;
+  transition: 0.35s ease;
+  z-index: 1000;
+  box-shadow: -15px 0 40px rgba(0,0,0,0.6);
+  overflow-y: auto;
+  border-left: 1px solid rgba(255,255,255,0.05);
+}
+
+.profile-drawer.active {
+  right: 0;
+}
+
+
+/* ================= PROFILE HEADER ================= */
+
+.profile-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.profile-header h3 {
+  margin: 0;
+}
+
+.profile-close {
+  cursor: pointer;
+  font-size: 22px;
+  opacity: 0.7;
+  transition: 0.2s ease;
+}
+
+.profile-close:hover {
+  opacity: 1;
+}
+
+/* ================= PROFILE CONTENT ================= */
+
+.profile-content {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* Avatar */
+.profile-avatar {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.profile-avatar img {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid #8b5cf6;
+  box-shadow: 0 0 25px rgba(139,92,246,0.6);
+}
+
+/* Inputs */
+.profile-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.profile-section label {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.profile-input {
+  background: #1f2937;
+  border: 1px solid rgba(255,255,255,0.06);
+  padding: 12px;
+  border-radius: 10px;
+  color: white;
+  transition: 0.2s ease;
+}
+
+.profile-input:focus {
+  outline: none;
+  border-color: #8b5cf6;
+}
+
+/* Save Button */
+.save-profile-btn {
+  margin-top: 10px;
+  background: linear-gradient(135deg, #8b5cf6, #6366f1);
+  border: none;
+  padding: 12px;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.25s ease;
+}
+
+.save-profile-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(139,92,246,0.4);
+}
+
+
+/* ================= MODAL SYSTEM ================= */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(6px);
+  opacity: 0;
+  visibility: hidden;
+  transition: 0.3s ease;
+  z-index: 999;
+}
+
+.modal-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.modal-card {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.9);
+  background: var(--panel);
+  padding: 30px;
+  width: 400px;
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  opacity: 0;
+  visibility: hidden;
+  transition: 0.25s ease;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.modal-card.active {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.room-type-toggle {
+  display: flex;
+  gap: 10px;
+}
+
+.toggle {
+  flex: 1;
+  border-radius: 8px;
+}
+
+.toggle.active {
+  background: var(--accent);
+  color: white;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+#timer[data-phase="focus"] {
+  color: #22c55e;
+}
+
+#timer[data-phase="break"] {
+  color: #f97316;
 }

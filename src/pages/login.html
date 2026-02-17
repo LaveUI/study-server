@@ -8,17 +8,26 @@
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 
-<body class="auth-page">
+<body class="auth-modern">
 
-  <div class="auth-container">
+  <div class="auth-wrapper-modern">
 
-    <div class="auth-left">
+    <!-- Left Branding Section -->
+    <div class="auth-brand-modern">
       <h1>📚 Study Server</h1>
       <p>Study together. Stay focused. Grow smarter.</p>
+
+      <div class="feature-list">
+        <div>🎥 Real-time Video Rooms</div>
+        <div>💬 Live Chat</div>
+        <div>⏳ Shared Pomodoro Timer</div>
+      </div>
     </div>
 
-    <div class="auth-card">
-      <h2>Welcome Back</h2>
+    <!-- Right Login Card -->
+    <div class="auth-card-modern">
+
+      <h2>Welcome Back 👋</h2>
       <p class="muted">Sign in to continue</p>
 
       <div
@@ -28,14 +37,20 @@
         data-auto_prompt="false">
       </div>
 
-      <div
-        class="g_id_signin"
-        data-type="standard"
-        data-size="large"
-        data-theme="outline"
-        data-text="sign_in_with"
-        data-shape="pill"
-        data-logo_alignment="left">
+      <div class="google-wrapper">
+        <div
+          class="g_id_signin"
+          data-type="standard"
+          data-size="large"
+          data-theme="filled_black"
+          data-text="sign_in_with"
+          data-shape="pill"
+          data-logo_alignment="left">
+        </div>
+      </div>
+
+      <div class="login-footer">
+        <span>Secure login powered by Google</span>
       </div>
 
     </div>
@@ -43,13 +58,5 @@
   </div>
 
   <script src="../js/auth.js"></script>
-
 </body>
 </html>
-
-
-
-
-
-
-

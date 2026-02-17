@@ -7,6 +7,31 @@
   <link rel="stylesheet" href="../css/style.css">
 </head>
 
+<!-- ================= CREATE ROOM MODAL ================= -->
+
+<div id="roomModalOverlay" class="modal-overlay"></div>
+
+<div id="roomModal" class="modal-card">
+
+  <h3>Create New Room</h3>
+
+  <label>Room Name</label>
+  <input id="roomNameInput" placeholder="Enter room name..." />
+
+  <label>Room Type</label>
+  <div class="room-type-toggle">
+    <button id="publicBtn" class="toggle active">Public</button>
+    <button id="privateBtn" class="toggle">Private</button>
+  </div>
+
+  <div class="modal-actions">
+    <button onclick="closeRoomModal()">Cancel</button>
+    <button class="primary-btn" onclick="submitRoom()">Create</button>
+  </div>
+
+</div>
+
+
 <body class="dashboard-page">
 
   <!-- ================= HEADER ================= -->
@@ -18,15 +43,24 @@
 
     <div class="header-right">
 
-      <div class="user-mini" onclick="openProfile()">
-        <img id="header-avatar">
+      <div class="user-chip" id="profileTrigger">
+        <img id="header-avatar" class="chip-avatar">
+        <div class="chip-info">
         <span id="user-name"></span>
+        <small class="muted">Online</small>
       </div>
-
-      <button onclick="logout()">🚪</button>
-      <button onclick="toggleTheme()">🌗</button>
-
     </div>
+
+    <button id="logoutBtn" class="danger-btn">
+      Logout
+    </button>
+
+  <button onclick="toggleTheme()" class="icon-btn">
+    🌗
+  </button>
+
+</div>
+
 
   </header>
 
@@ -34,9 +68,7 @@
   <!-- ================= MAIN ================= -->
   <main class="dashboard-modern">
 
-    <!-- Welcome Section -->
     <section class="dashboard-welcome">
-
       <div>
         <h1 id="welcome-text">Welcome 👋</h1>
         <p class="muted">
@@ -47,120 +79,72 @@
       <button id="createRoom" class="primary-btn">
         ➕ Create Room
       </button>
-
     </section>
 
-
-    <!-- Rooms Section -->
     <section class="rooms-section">
-
       <div class="rooms-header">
         <h3>Available Public Rooms</h3>
       </div>
-
       <div id="roomsList" class="rooms-grid"></div>
-
     </section>
 
   </main>
 
 
-  <!-- ================= PROFILE DRAWER ================= -->
+<!-- ================= PROFILE DRAWER ================= -->
 
-  <div id="profile-overlay" class="profile-overlay" onclick="closeProfile()"></div>
+<div id="profile-overlay" class="profile-overlay"></div>
 
-  <div id="profile-drawer" class="profile-drawer">
+<div id="profile-drawer" class="profile-drawer">
 
-    <div class="profile-header">
-      <h3>Your Profile</h3>
+  <div class="profile-header">
+    <h3>Your Profile</h3>
+    <span class="close-btn" id="closeProfileBtn">✕</span>
+  </div>
+
+  <div class="profile-content">
+
+    <div class="profile-avatar-wrapper">
+      <img id="profile-pic" class="profile-avatar-img" />
+      <div class="avatar-ring"></div>
     </div>
 
-    <div class="profile-content">
-
-      <div class="profile-avatar">
-        <img id="profile-pic" />
-      </div>
-
+    <div class="profile-section">
       <label>Name</label>
-      <input id="profile-name" class="profile-input" disabled />
+      <input id="profile-name" disabled />
+    </div>
 
+    <div class="profile-section">
       <label>Role</label>
-      <select id="profile-role" class="profile-input">
+      <select id="profile-role">
         <option value="School Student">School Student</option>
         <option value="College Student">College Student</option>
         <option value="Professional">Professional</option>
       </select>
-
-      <label>Interests</label>
-      <input id="profile-interests"
-             class="profile-input"
-             placeholder="Coding, UPSC, Physics..." />
-
-      <button onclick="saveProfile()" class="primary-btn">
-        Save Changes
-      </button>
-
     </div>
 
+    <div class="profile-section">
+      <label>Interests</label>
+      <input
+        id="profile-interests"
+        placeholder="Coding, UPSC, Physics..."
+      />
+    </div>
+
+    <button class="save-profile-btn">
+      💾 Save Changes
+    </button>
+
   </div>
+
+</div>
+
 
 
   <!-- ================= SCRIPTS ================= -->
 
-  <script src="../js/dashboard.js"></script>
   <script src="../js/theme.js"></script>
-
-  <script>
-    const user = JSON.parse(localStorage.getItem("user"));
-
-    if (!user) {
-      window.location.href = "login.html";
-    }
-
-    if (user) {
-      document.getElementById("user-name").textContent = user.name;
-      document.getElementById("welcome-text").textContent =
-        `Welcome back, ${user.name} 👋`;
-
-      document.getElementById("header-avatar").src = user.picture;
-      document.getElementById("profile-pic").src = user.picture;
-      document.getElementById("profile-name").value = user.name;
-    }
-
-    function logout() {
-      localStorage.clear();
-      window.location.href = "login.html";
-    }
-
-    function openProfile() {
-      document.getElementById("profile-overlay").classList.add("active");
-      document.getElementById("profile-drawer").classList.add("active");
-
-      const savedProfile =
-        JSON.parse(localStorage.getItem("profile")) || {};
-
-      document.getElementById("profile-role").value =
-        savedProfile.role || "College Student";
-
-      document.getElementById("profile-interests").value =
-        savedProfile.interests || "";
-    }
-
-    function closeProfile() {
-      document.getElementById("profile-overlay").classList.remove("active");
-      document.getElementById("profile-drawer").classList.remove("active");
-    }
-
-    function saveProfile() {
-      const profileData = {
-        role: document.getElementById("profile-role").value,
-        interests: document.getElementById("profile-interests").value
-      };
-
-      localStorage.setItem("profile", JSON.stringify(profileData));
-      closeProfile();
-    }
-  </script>
+  <script src="../js/dashboard.js"></script>
 
 </body>
 </html>

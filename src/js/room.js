@@ -40,6 +40,13 @@ const invite = params.get("invite");
 
 let roomId;
 
+function extractYouTubeID(url) {
+  const regExp =
+    /(?:youtube\.com\/.*v=|youtu\.be\/|music\.youtube\.com\/watch\?v=)([^&]+)/;
+  const match = url.match(regExp);
+  return match ? match[1] : null;
+}
+
 async function resolveRoom() {
   if (invite) {
     const res = await fetch(`${API}/rooms/invite/${invite}`);
@@ -68,20 +75,12 @@ const rtcConfig = {
   iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
 };
 
-/* ---------- Video Layout ---------- */
-
 function updateVideoLayout() {
+  if (!videoGrid) return;
   const videos = videoGrid.querySelectorAll("video");
   videoGrid.classList.remove("single", "multiple");
-
-  if (videos.length <= 1) {
-    videoGrid.classList.add("single");
-  } else {
-    videoGrid.classList.add("multiple");
-  }
+  videoGrid.classList.add(videos.length <= 1 ? "single" : "multiple");
 }
-
-/* ---------- Init Media ---------- */
 
 async function initMedia() {
   try {
@@ -101,7 +100,7 @@ async function initMedia() {
     myVideo.style.transform = "scaleX(-1)";
     myVideo.style.objectFit = "cover";
 
-    videoGrid.appendChild(myVideo);
+    videoGrid?.appendChild(myVideo);
     updateVideoLayout();
 
     socket.emit("video-ready", { roomId });
@@ -111,6 +110,57 @@ async function initMedia() {
     alert("Camera/Microphone permission required.");
   }
 }
+
+/* ================= MUSIC SYSTEM (FIXED PROPERLY) ================= */
+
+let ytPlayer = null;
+let ytReady = false;
+
+window.onYouTubeIframeAPIReady = function () {
+  ytReady = true;
+};
+
+window.openMusicModal = function () {
+  document.getElementById("musicOverlay")?.classList.add("active");
+  document.getElementById("musicModal")?.classList.add("active");
+};
+
+window.closeMusicModal = function () {
+  document.getElementById("musicOverlay")?.classList.remove("active");
+  document.getElementById("musicModal")?.classList.remove("active");
+};
+
+window.loadYouTubeMusic = function () {
+
+  if (!ytReady || typeof YT === "undefined") {
+    alert("YouTube API still loading...");
+    return;
+  }
+
+  const link = document.getElementById("ytLinkInput")?.value.trim();
+  if (!link) return;
+
+  const videoId = extractYouTubeID(link);
+  if (!videoId) {
+    alert("Invalid YouTube link");
+    return;
+  }
+
+  if (ytPlayer) ytPlayer.destroy();
+
+  ytPlayer = new YT.Player("yt-player", {
+    height: "0",
+    width: "0",
+    videoId: videoId,
+    playerVars: { autoplay: 1, controls: 0 },
+    events: {
+      onReady: e => e.target.playVideo(),
+      onError: () => alert("Music failed to load")
+    }
+  });
+
+  closeMusicModal();
+};
 
 /* ================= SOCKET CONNECT ================= */
 
@@ -143,6 +193,7 @@ const input = document.getElementById("chat-input");
 
 function renderMessage(sender, message, createdAt) {
   const container = document.getElementById("messages");
+  if (!container) return;
 
   const div = document.createElement("div");
   div.className = sender === user ? "msg own" : "msg";
@@ -161,6 +212,7 @@ function renderMessage(sender, message, createdAt) {
 
 socket.on("chat-history", msgs => {
   const container = document.getElementById("messages");
+  if (!container) return;
   container.innerHTML = "";
   msgs.forEach(m => renderMessage(m.user, m.message, m.createdAt));
 });
@@ -169,271 +221,191 @@ socket.on("chat-message", data =>
   renderMessage(data.user, data.message, data.createdAt)
 );
 
-if (input) {
-  input.addEventListener("keydown", e => {
-    if (e.key === "Enter" && input.value.trim()) {
-      socket.emit("chat-message", {
-        roomId,
-        message: input.value.trim()
-      });
-      input.value = "";
-    }
+input?.addEventListener("keydown", e => {
+  if (e.key === "Enter" && input.value.trim()) {
+    socket.emit("chat-message", {
+      roomId,
+      message: input.value.trim()
+    });
+    input.value = "";
+  }
+});
+
+/* ================= TIMER SYSTEM ================= */
+
+const timerModal = document.getElementById("timerModal");
+const timerOverlay = document.getElementById("timerOverlay");
+
+window.openTimerModal = function () {
+  timerModal?.classList.add("active");
+  timerOverlay?.classList.add("active");
+};
+
+window.closeTimerModal = function () {
+  timerModal?.classList.remove("active");
+  timerOverlay?.classList.remove("active");
+};
+
+timerOverlay?.addEventListener("click", closeTimerModal);
+
+window.startCustomTimer = function () {
+
+  const minutes = parseInt(
+    document.getElementById("timerInput")?.value
+  );
+
+  if (!minutes || minutes < 1 || minutes > 180) {
+    alert("Enter valid time (1–180)");
+    return;
+  }
+
+  socket.emit("timer-start", {
+    roomId,
+    duration: minutes * 60
   });
-}
 
-/* ================= TIMER ================= */
-
-const timerEl = document.getElementById("timer");
-
-window.startTimer = () => socket.emit("timer-start", { roomId });
-window.resetTimer = () => socket.emit("timer-reset", { roomId });
+  closeTimerModal();
+};
 
 socket.on("timer-update", ({ timeLeft }) => {
+  const timerEl = document.getElementById("timer");
+  if (!timerEl) return;
+
   const min = String(Math.floor(timeLeft / 60)).padStart(2, "0");
   const sec = String(timeLeft % 60).padStart(2, "0");
+
   timerEl.textContent = `${min}:${sec}`;
 });
 
-/* ================= WEBRTC ================= */
 
-socket.on("video-ready", async ({ sender }) => {
-  if (sender === socket.id || !localStream) return;
 
-  const peer = new RTCPeerConnection(rtcConfig);
-  peers[sender] = peer;
+window.startPomodoro = function () {
 
-  localStream.getTracks().forEach(track =>
-    peer.addTrack(track, localStream)
-  );
+  const focus = parseInt(document.getElementById("focusInput").value);
+  const brk = parseInt(document.getElementById("breakInput").value);
 
-  peer.ontrack = e => {
-    const video = document.createElement("video");
-    video.srcObject = e.streams[0];
-    video.autoplay = true;
-    video.playsInline = true;
-    videoGrid.appendChild(video);
-    updateVideoLayout();
-  };
+  if (!focus || !brk) {
+    alert("Enter valid values");
+    return;
+  }
 
-  peer.onicecandidate = e => {
-    if (e.candidate) {
-      socket.emit("ice-candidate", {
-        candidate: e.candidate,
-        target: sender
-      });
-    }
-  };
+  socket.emit("pomodoro-start", {
+    roomId,
+    focus: focus * 60,
+    breakTime: brk * 60
+  });
 
-  const offer = await peer.createOffer();
-  await peer.setLocalDescription(offer);
-
-  socket.emit("video-offer", { offer, target: sender });
-});
-
-socket.on("video-offer", async ({ offer, sender }) => {
-  if (!localStream) return;
-
-  const peer = new RTCPeerConnection(rtcConfig);
-  peers[sender] = peer;
-
-  localStream.getTracks().forEach(track =>
-    peer.addTrack(track, localStream)
-  );
-
-  peer.ontrack = e => {
-    const video = document.createElement("video");
-    video.srcObject = e.streams[0];
-    video.autoplay = true;
-    video.playsInline = true;
-    videoGrid.appendChild(video);
-    updateVideoLayout();
-  };
-
-  await peer.setRemoteDescription(new RTCSessionDescription(offer));
-  const answer = await peer.createAnswer();
-  await peer.setLocalDescription(answer);
-
-  socket.emit("video-answer", { answer, target: sender });
-});
-
-socket.on("video-answer", async ({ answer, sender }) => {
-  if (!peers[sender]) return;
-  await peers[sender].setRemoteDescription(
-    new RTCSessionDescription(answer)
-  );
-});
-
-socket.on("ice-candidate", async ({ candidate, sender }) => {
-  if (!peers[sender]) return;
-  await peers[sender].addIceCandidate(
-    new RTCIceCandidate(candidate)
-  );
-});
-
-/* ================= CONTROLS ================= */
-
-window.toggleMic = () => {
-  if (!localStream) return;
-  localStream.getAudioTracks().forEach(t => t.enabled = !t.enabled);
+  closeTimerModal();
 };
+
+
+/* ================= CAMERA TOGGLE (STABLE) ================= */
 
 window.toggleCamera = async () => {
 
   if (!localStream) return;
 
-  const existingTrack = localStream.getVideoTracks()[0];
-  const myVideo = videoGrid.querySelector("video");
+  const selfVideo = document.getElementById("self-video");
+  const track = localStream.getVideoTracks()[0];
 
-  /* ================= TURN CAMERA OFF ================= */
+  if (track) {
+    track.stop();
+    localStream.removeTrack(track);
+    cameraTrack = null;
 
-  if (existingTrack) {
-
-    // Stop hardware completely
-    existingTrack.stop();
-
-    // Remove from local stream
-    localStream.removeTrack(existingTrack);
-
-    // Remove from peers
-    for (let id in peers) {
-      const sender = peers[id]
-        .getSenders()
-        .find(s => s.track && s.track.kind === "video");
-
+    Object.values(peers).forEach(peer => {
+      const sender = peer.getSenders()
+        .find(s => s.track?.kind === "video");
       if (sender) sender.replaceTrack(null);
-    }
+    });
 
-    // Hide video element
-    if (myVideo) myVideo.style.display = "none";
+    if (selfVideo) selfVideo.style.display = "none";
 
-    // Create avatar if not exists
-    if (!document.getElementById("self-avatar")) {
-
-      const userData = JSON.parse(localStorage.getItem("user"));
-      const photo = userData?.picture;
-
-      const avatar = document.createElement("div");
-      avatar.id = "self-avatar";
-      avatar.className = "video-avatar";
-
-      if (photo) {
-        const img = document.createElement("img");
-        img.src = photo;
-        img.className = "avatar-img";
-        avatar.appendChild(img);
-      } else {
-        const circle = document.createElement("div");
-        circle.className = "avatar-circle";
-        circle.textContent = user.charAt(0).toUpperCase();
-        avatar.appendChild(circle);
-      }
-
-      const name = document.createElement("p");
-      name.textContent = user;
-      avatar.appendChild(name);
-
-      videoGrid.appendChild(avatar);
-    }
-
-    console.log("📷 Camera stopped and released");
-  }
-
-  /* ================= TURN CAMERA ON ================= */
-
-  else {
-
+  } else {
     try {
-
       const newStream = await navigator.mediaDevices.getUserMedia({
         video: true
       });
 
       const newTrack = newStream.getVideoTracks()[0];
-
       localStream.addTrack(newTrack);
+      cameraTrack = newTrack;
 
-      // Replace in peers
-      for (let id in peers) {
-        const sender = peers[id]
-          .getSenders()
+      Object.values(peers).forEach(peer => {
+        const sender = peer.getSenders()
           .find(s => s.track === null || s.track?.kind === "video");
-
         if (sender) sender.replaceTrack(newTrack);
+      });
+
+      if (selfVideo) {
+        selfVideo.srcObject = localStream;
+        selfVideo.style.display = "block";
       }
 
-      // Restore video element
-      if (myVideo) {
-        myVideo.srcObject = localStream;
-        myVideo.style.display = "block";
-      }
-
-      // Remove avatar
-      const avatar = document.getElementById("self-avatar");
-      if (avatar) avatar.remove();
-
-      console.log("📷 Camera restarted");
-
-    } catch (err) {
-      console.error("Camera restart error:", err);
+    } catch {
       alert("Unable to access camera.");
     }
   }
 };
 
-
+/* ================= SCREEN SHARE (SAFE RESTORE) ================= */
 
 window.shareScreen = async () => {
+
   if (!localStream) return;
 
-  const screenStream = await navigator.mediaDevices.getDisplayMedia({
-    video: true
-  });
+  try {
+    const screenStream = await navigator.mediaDevices.getDisplayMedia({
+      video: true
+    });
 
-  const screenTrack = screenStream.getVideoTracks()[0];
+    const screenTrack = screenStream.getVideoTracks()[0];
+    const selfVideo = document.getElementById("self-video");
 
-  for (let id in peers) {
-    const sender = peers[id]
-      .getSenders()
-      .find(s => s.track.kind === "video");
+    Object.values(peers).forEach(peer => {
+      const sender = peer.getSenders()
+        .find(s => s.track?.kind === "video");
+      if (sender) sender.replaceTrack(screenTrack);
+    });
 
-    if (sender) sender.replaceTrack(screenTrack);
+    if (selfVideo) selfVideo.srcObject = screenStream;
+
+    screenTrack.onended = () => {
+
+      if (!cameraTrack) return;
+
+      Object.values(peers).forEach(peer => {
+        const sender = peer.getSenders()
+          .find(s => s.track);
+        if (sender) sender.replaceTrack(cameraTrack);
+      });
+
+      if (selfVideo) selfVideo.srcObject = localStream;
+    };
+
+  } catch (err) {
+    console.error("Screen share error:", err);
   }
-
-  screenTrack.onended = () => {
-    for (let id in peers) {
-      const sender = peers[id]
-        .getSenders()
-        .find(s => s.track.kind === "video");
-
-      if (sender && cameraTrack) sender.replaceTrack(cameraTrack);
-    }
-  };
 };
 
 /* ================= BACKGROUND PANEL ================= */
 
 window.setBackground = function(bgClass) {
   if (!BG_CLASSES.includes(bgClass)) return;
-
   document.body.classList.remove(...BG_CLASSES);
   document.body.classList.add(bgClass);
   localStorage.setItem("bgTheme", bgClass);
-
-  const panel = document.getElementById("bg-panel");
-  if (panel) panel.classList.remove("active");
 };
 
 window.toggleBgPanel = function() {
   const panel = document.getElementById("bg-panel");
-  if (!panel) return;
-  panel.classList.toggle("active");
+  panel?.classList.toggle("active");
 };
 
 document.addEventListener("click", (e) => {
   const panel = document.getElementById("bg-panel");
   const toggleBtn = document.querySelector("button[onclick='toggleBgPanel()']");
   if (!panel || !toggleBtn) return;
-
   if (!panel.contains(e.target) && !toggleBtn.contains(e.target)) {
     panel.classList.remove("active");
   }
