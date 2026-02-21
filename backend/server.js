@@ -39,6 +39,7 @@ const PORT = 5000;
 const timers = {};
 const onlineUsers = {};
 let pomodoroTimers = {};
+let roomGoals = {};
 
 
 /* ---------------- REST API ---------------- */
@@ -181,13 +182,14 @@ io.on("connection", (socket) => {
         count: onlineUsers[roomId].size,
       });
 
-      /* ----- Send Chat History ----- */
+      /* ----- Send Chat History & Goals ----- */
 
       const messages = await Message.find({ roomId })
         .sort({ createdAt: 1 })
         .limit(50);
 
       socket.emit("chat-history", messages);
+      socket.emit("room-goals-update", roomGoals[roomId] || []);
 
     } catch (err) {
       console.error("Join room error:", err);
@@ -253,134 +255,166 @@ io.on("connection", (socket) => {
     io.to(roomId).emit("force-mute");
   });
 
-/* ================= TIMER ================= */
-/* ================= POMODORO TIMER ================= */
+  /* ================= ROOM GOALS ================= */
 
-socket.on("pomodoro-start", ({ roomId, focus, breakTime }) => {
+  socket.on("add-room-goal", ({ roomId, text }) => {
+    if (!roomId || !text) return;
+    if (!roomGoals[roomId]) roomGoals[roomId] = [];
 
-  if (!roomId || !focus || !breakTime) return;
+    roomGoals[roomId].push({
+      id: Date.now().toString(),
+      text: text,
+      checked: false
+    });
 
-  // Clear existing timer
-  if (pomodoroTimers[roomId]) {
-    clearInterval(pomodoroTimers[roomId].interval);
-  }
-
-  let timeLeft = focus;
-  let phase = "focus";
-
-  // Store timer state
-  pomodoroTimers[roomId] = {
-    focus,
-    breakTime,
-    timeLeft,
-    phase,
-    interval: null
-  };
-
-  // Immediately send first update (no delay)
-  io.to(roomId).emit("pomodoro-update", {
-    timeLeft,
-    phase
+    io.to(roomId).emit("room-goals-update", roomGoals[roomId]);
   });
 
-  pomodoroTimers[roomId].interval = setInterval(() => {
+  socket.on("toggle-room-goal", ({ roomId, goalId }) => {
+    if (!roomId || !goalId || !roomGoals[roomId]) return;
 
-    timeLeft--;
-    pomodoroTimers[roomId].timeLeft = timeLeft;
+    const goal = roomGoals[roomId].find(g => g.id === goalId);
+    if (goal) {
+      goal.checked = !goal.checked;
+      io.to(roomId).emit("room-goals-update", roomGoals[roomId]);
+    }
+  });
 
-    if (timeLeft <= 0) {
+  socket.on("delete-room-goal", ({ roomId, goalId }) => {
+    if (!roomId || !goalId || !roomGoals[roomId]) return;
 
-      if (phase === "focus") {
-        phase = "break";
-        timeLeft = breakTime;
-      } else {
-        phase = "focus";
-        timeLeft = focus;
-      }
+    roomGoals[roomId] = roomGoals[roomId].filter(g => g.id !== goalId);
+    io.to(roomId).emit("room-goals-update", roomGoals[roomId]);
+  });
 
-      pomodoroTimers[roomId].phase = phase;
-      pomodoroTimers[roomId].timeLeft = timeLeft;
+  /* ================= TIMER ================= */
+  /* ================= POMODORO TIMER ================= */
+
+  socket.on("pomodoro-start", ({ roomId, focus, breakTime }) => {
+
+    if (!roomId || !focus || !breakTime) return;
+
+    // Clear existing timer
+    if (pomodoroTimers[roomId]) {
+      clearInterval(pomodoroTimers[roomId].interval);
     }
 
+    let timeLeft = focus;
+    let phase = "focus";
+
+    // Store timer state
+    pomodoroTimers[roomId] = {
+      focus,
+      breakTime,
+      timeLeft,
+      phase,
+      interval: null
+    };
+
+    // Immediately send first update (no delay)
     io.to(roomId).emit("pomodoro-update", {
       timeLeft,
       phase
     });
 
-  }, 1000);
-});
+    pomodoroTimers[roomId].interval = setInterval(() => {
+
+      timeLeft--;
+      pomodoroTimers[roomId].timeLeft = timeLeft;
+
+      if (timeLeft <= 0) {
+
+        if (phase === "focus") {
+          phase = "break";
+          timeLeft = breakTime;
+        } else {
+          phase = "focus";
+          timeLeft = focus;
+        }
+
+        pomodoroTimers[roomId].phase = phase;
+        pomodoroTimers[roomId].timeLeft = timeLeft;
+      }
+
+      io.to(roomId).emit("pomodoro-update", {
+        timeLeft,
+        phase
+      });
+
+    }, 1000);
+  });
 
 
-/* ================= STOP POMODORO ================= */
+  /* ================= STOP POMODORO ================= */
 
-socket.on("pomodoro-stop", ({ roomId }) => {
+  socket.on("pomodoro-stop", ({ roomId }) => {
 
-  if (!roomId || !pomodoroTimers[roomId]) return;
+    if (!roomId || !pomodoroTimers[roomId]) return;
 
-  clearInterval(pomodoroTimers[roomId].interval);
-  delete pomodoroTimers[roomId];
+    clearInterval(pomodoroTimers[roomId].interval);
+    delete pomodoroTimers[roomId];
 
-  io.to(roomId).emit("pomodoro-stopped");
-});
+    io.to(roomId).emit("pomodoro-stopped");
+  });
 
-/* ================= STOP TIMER ================= */
+  /* ================= STOP TIMER ================= */
 
 
-socket.on("timer-start", ({ roomId, duration }) => {
+  socket.on("timer-start", ({ roomId, duration }) => {
 
-  if (!roomId || !duration) return;
+    if (!roomId || !duration) return;
 
-  if (!timers[roomId]) {
-    timers[roomId] = {};
-  }
+    if (!timers[roomId]) {
+      timers[roomId] = {};
+    }
 
-  if (timers[roomId].running) return;
+    if (timers[roomId].running) return;
 
-  timers[roomId] = {
-    timeLeft: duration,
-    running: true
-  };
+    timers[roomId] = {
+      timeLeft: duration,
+      running: true
+    };
 
-  timers[roomId].interval = setInterval(() => {
+    timers[roomId].interval = setInterval(() => {
 
-    timers[roomId].timeLeft--;
+      timers[roomId].timeLeft--;
+
+      io.to(roomId).emit("timer-update", {
+        timeLeft: timers[roomId].timeLeft,
+        running: true
+      });
+
+      if (timers[roomId].timeLeft <= 0) {
+
+        clearInterval(timers[roomId].interval);
+
+        timers[roomId].running = false;
+
+        io.to(roomId).emit("timer-update", {
+          timeLeft: 0,
+          running: false
+        });
+      }
+
+    }, 1000);
+  });
+
+  socket.on("timer-reset", ({ roomId }) => {
+
+    if (!roomId || !timers[roomId]) return;
+
+    clearInterval(timers[roomId].interval);
+
+    timers[roomId] = {
+      timeLeft: 25 * 60,
+      running: false
+    };
 
     io.to(roomId).emit("timer-update", {
       timeLeft: timers[roomId].timeLeft,
-      running: true
+      running: false
     });
-
-    if (timers[roomId].timeLeft <= 0) {
-
-      clearInterval(timers[roomId].interval);
-
-      timers[roomId].running = false;
-
-      io.to(roomId).emit("timer-update", {
-        timeLeft: 0,
-        running: false
-      });
-    }
-
-  }, 1000);
-});
-
-socket.on("timer-reset", ({ roomId }) => {
-
-  if (!roomId || !timers[roomId]) return;
-
-  clearInterval(timers[roomId].interval);
-
-  timers[roomId] = {
-    timeLeft: 25 * 60,
-    running: false
-  };
-
-  io.to(roomId).emit("timer-update", {
-    timeLeft: timers[roomId].timeLeft,
-    running: false
   });
-});
 
 
   /* ================= DISCONNECT ================= */
@@ -399,7 +433,7 @@ socket.on("timer-reset", ({ roomId }) => {
 
       if (onlineUsers[roomId].size === 0) {
 
-  // 🔥 Clear Pomodoro if room empty
+        // 🔥 Clear Pomodoro if room empty
         if (pomodoroTimers[roomId]) {
           clearInterval(pomodoroTimers[roomId].interval);
           delete pomodoroTimers[roomId];
@@ -409,7 +443,7 @@ socket.on("timer-reset", ({ roomId }) => {
       }
 
     }
-    
+
 
     console.log("🔴 Disconnected:", socket.user.name);
   });

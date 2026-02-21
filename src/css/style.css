@@ -1,7 +1,8 @@
 /* =====================================================
    THEME VARIABLES
 ===================================================== */
-html, body {
+html,
+body {
   margin: 0;
   padding: 0;
   overflow-x: hidden;
@@ -15,8 +16,8 @@ html, body {
   --text: #e4e6eb;
   --muted: #9aa0a6;
   --accent: #5865f2;
-  --border: rgba(255,255,255,0.05);
-  --shadow: 0 20px 60px rgba(0,0,0,0.5);
+  --border: rgba(255, 255, 255, 0.05);
+  --shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
 }
 
 body.light {
@@ -26,8 +27,8 @@ body.light {
   --text: #1f2937;
   --muted: #6b7280;
   --accent: #2563eb;
-  --border: rgba(0,0,0,0.08);
-  --shadow: 0 20px 50px rgba(0,0,0,0.08);
+  --border: rgba(0, 0, 0, 0.08);
+  --shadow: 0 20px 50px rgba(0, 0, 0, 0.08);
 }
 
 /* =====================================================
@@ -46,7 +47,9 @@ body {
    BACKGROUND THEMES
 ===================================================== */
 
-body.bg-default { background: var(--bg); }
+body.bg-default {
+  background: var(--bg);
+}
 
 body.bg-gradient {
   background: radial-gradient(circle at top left, #1e293b, #0f172a);
@@ -141,6 +144,338 @@ input::placeholder {
   font-size: 0.9rem;
 }
 
+/* ================= MUSIC PANEL (DRAGGABLE) ================= */
+
+.music-panel {
+  position: fixed;
+  top: 150px;
+  left: 100px;
+  width: 320px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
+  border-radius: 16px;
+  z-index: 2000;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s, visibility 0.2s;
+}
+
+.music-panel.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.music-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  cursor: grab;
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--border);
+}
+
+.music-header:active {
+  cursor: grabbing;
+}
+
+.music-header h3 {
+  margin: 0;
+  flex: 1;
+  text-align: center;
+  pointer-events: none;
+}
+
+.music-controls {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.playback-btns {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+}
+
+.playback-btns button {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  border: none;
+  background: var(--panel-2);
+  color: white;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.playback-btns button:hover {
+  background: var(--accent);
+  transform: scale(1.05);
+}
+
+.volume-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.volume-control input[type=range] {
+  flex: 1;
+  accent-color: var(--accent);
+}
+
+/* ================= SCREEN SHARE PANEL ================= */
+
+.screenshare-panel {
+  position: fixed;
+  top: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 640px;
+  height: 400px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.7);
+  border-radius: 12px;
+  z-index: 1500;
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s, visibility 0.2s;
+  overflow: hidden;
+}
+
+.screenshare-panel.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.screenshare-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid var(--border);
+  cursor: grab;
+  user-select: none;
+}
+
+.screenshare-header:active {
+  cursor: grabbing;
+}
+
+.screenshare-header h3 {
+  margin: 0;
+  flex: 1;
+  text-align: center;
+  font-size: 1rem;
+  pointer-events: none;
+}
+
+.screenshare-content {
+  flex: 1;
+  background: #000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+}
+
+#screenshare-video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  /* NO scaleX(-1) here to prevent mirroring/upside down issues */
+}
+
+.resize-handle {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 20px;
+  height: 20px;
+  cursor: se-resize;
+  color: var(--muted);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  user-select: none;
+  background: rgba(0, 0, 0, 0.2);
+  border-top-left-radius: 8px;
+}
+
+/* ================= GOALS PANEL (DRAGGABLE) ================= */
+
+.goals-panel {
+  position: fixed;
+  top: 100px;
+  /* Default starting position */
+  left: 100px;
+  width: 320px;
+  max-height: 70vh;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
+  border-radius: 16px;
+  z-index: 2000;
+  /* Extremely high z-index to stay above videos/chat */
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s, visibility 0.2s;
+}
+
+.goals-panel.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.goals-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  cursor: grab;
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--border);
+}
+
+.goals-header:active {
+  cursor: grabbing;
+}
+
+.drag-handle {
+  color: var(--muted);
+  font-size: 1.2rem;
+  user-select: none;
+  cursor: grab;
+}
+
+.goals-header h3 {
+  margin: 0;
+  flex: 1;
+  text-align: center;
+  pointer-events: none;
+  /* Let clicks pass through to drag handler */
+}
+
+.goals-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  background: var(--panel-2);
+  padding: 4px;
+  border-radius: 12px;
+}
+
+.tab-btn {
+  flex: 1;
+  background: transparent;
+  color: var(--muted);
+  border: none;
+  padding: 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: 0.2s;
+  font-weight: 500;
+}
+
+.tab-btn.active {
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.goals-tab-content {
+  display: none;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.goals-tab-content.active {
+  display: flex;
+}
+
+.input-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 15px;
+}
+
+.input-row input {
+  flex: 1;
+}
+
+.input-row button {
+  background: var(--accent);
+  color: white;
+  border: none;
+  width: 40px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.goals-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.goal-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--panel-2);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  word-break: break-all;
+}
+
+.goal-item.checked {
+  opacity: 0.6;
+}
+
+.goal-item.checked span {
+  text-decoration: line-through;
+}
+
+.goal-checkbox {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+
+.goal-delete {
+  margin-left: auto;
+  background: transparent !important;
+  color: var(--muted) !important;
+  border: none;
+  cursor: pointer;
+}
+
+.goal-delete:hover {
+  color: #ff5c5c !important;
+  transform: scale(1.1);
+}
+
 /* ================= STAGE ================= */
 
 .stage-area {
@@ -220,7 +555,7 @@ input::placeholder {
 }
 
 .msg.own {
-  background: rgba(88,101,242,0.2);
+  background: rgba(88, 101, 242, 0.2);
 }
 
 .chat-input-wrapper {
@@ -412,7 +747,7 @@ input::placeholder {
 
 .save-profile-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(124,58,237,0.4);
+  box-shadow: 0 8px 20px rgba(124, 58, 237, 0.4);
 }
 
 
@@ -433,7 +768,7 @@ input::placeholder {
   width: 230px;
 
   border: 1px solid var(--border);
-  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
 
   backdrop-filter: blur(12px);
   z-index: 1000;
@@ -556,7 +891,7 @@ input::placeholder {
   grid-template-columns: 1fr 460px;
   border-radius: 24px;
   overflow: hidden;
-  box-shadow: 0 50px 120px rgba(0,0,0,0.6);
+  box-shadow: 0 50px 120px rgba(0, 0, 0, 0.6);
 }
 
 /* Left Branding */
@@ -677,7 +1012,7 @@ input::placeholder {
 .profile-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.55);
+  background: rgba(0, 0, 0, 0.55);
   backdrop-filter: blur(5px);
   opacity: 0;
   visibility: hidden;
@@ -703,9 +1038,9 @@ input::placeholder {
   padding: 40px 30px;
   transition: 0.35s ease;
   z-index: 1000;
-  box-shadow: -15px 0 40px rgba(0,0,0,0.6);
+  box-shadow: -15px 0 40px rgba(0, 0, 0, 0.6);
   overflow-y: auto;
-  border-left: 1px solid rgba(255,255,255,0.05);
+  border-left: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .profile-drawer.active {
@@ -758,7 +1093,7 @@ input::placeholder {
   border-radius: 50%;
   object-fit: cover;
   border: 3px solid #8b5cf6;
-  box-shadow: 0 0 25px rgba(139,92,246,0.6);
+  box-shadow: 0 0 25px rgba(139, 92, 246, 0.6);
 }
 
 /* Inputs */
@@ -775,7 +1110,7 @@ input::placeholder {
 
 .profile-input {
   background: #1f2937;
-  border: 1px solid rgba(255,255,255,0.06);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   padding: 12px;
   border-radius: 10px;
   color: white;
@@ -801,7 +1136,7 @@ input::placeholder {
 
 .save-profile-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 25px rgba(139,92,246,0.4);
+  box-shadow: 0 10px 25px rgba(139, 92, 246, 0.4);
 }
 
 
@@ -810,7 +1145,7 @@ input::placeholder {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.6);
+  background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(6px);
   opacity: 0;
   visibility: hidden;

@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -57,11 +58,7 @@
       <div id="typing-indicator" class="muted typing-indicator"></div>
 
       <div class="chat-input-wrapper">
-        <input
-          id="chat-input"
-          placeholder="Message Study Room"
-          autocomplete="off"
-        />
+        <input id="chat-input" placeholder="Message Study Room" autocomplete="off" />
       </div>
 
     </aside>
@@ -87,7 +84,50 @@
 
     <!-- MUSIC -->
     <div class="music-mini">
-      <button onclick="openMusicModal()">🎧</button>
+      <button onclick="toggleMusicPanel()">🎧</button>
+    </div>
+
+    <!-- GOALS -->
+    <div class="goals-mini">
+      <button onclick="toggleGoalsPanel()">🎯</button>
+    </div>
+
+  </div>
+
+  <!-- ======================================================
+     GOALS PANEL (DRAGGABLE)
+  ======================================================= -->
+
+  <div id="goals-panel" class="goals-panel">
+
+    <div id="goals-header" class="goals-header">
+      <div class="drag-handle">⋮⋮</div>
+      <h3>Checklist</h3>
+      <button class="close-btn" onclick="toggleGoalsPanel()">✖</button>
+    </div>
+
+    <!-- TABS -->
+    <div class="goals-tabs">
+      <button class="tab-btn active" onclick="switchGoalTab('personal')">Personal</button>
+      <button class="tab-btn" onclick="switchGoalTab('room')">Room</button>
+    </div>
+
+    <!-- PERSONAL SECTION -->
+    <div id="tab-personal" class="goals-tab-content active">
+      <div class="input-row">
+        <input id="personalGoalInput" placeholder="Add a personal goal..." onkeydown="handlePersonalGoalKey(event)" />
+        <button onclick="addPersonalGoal()">+</button>
+      </div>
+      <ul id="personal-goals-list" class="goals-list"></ul>
+    </div>
+
+    <!-- ROOM SECTION -->
+    <div id="tab-room" class="goals-tab-content">
+      <div class="input-row">
+        <input id="roomGoalInput" placeholder="Add a shared room goal..." onkeydown="handleRoomGoalKey(event)" />
+        <button onclick="addRoomGoal()">+</button>
+      </div>
+      <ul id="room-goals-list" class="goals-list"></ul>
     </div>
 
   </div>
@@ -96,44 +136,82 @@
      TIMER MODAL
   ======================================================= -->
 
-  <h3>Pomodoro Settings</h3>
+  <div id="timerOverlay" class="modal-overlay"></div>
 
-<label>Focus Minutes</label>
-<input id="focusInput" type="number" min="1" max="180" value="30" />
+  <div id="timerModal" class="modal-card">
+    <h3>Pomodoro Settings</h3>
 
-<label>Break Minutes</label>
-<input id="breakInput" type="number" min="1" max="60" value="10" />
+    <label>Focus Minutes</label>
+    <input id="focusInput" type="number" min="1" max="180" value="30" />
 
-<div class="modal-actions">
-  <button onclick="closeTimerModal()">Cancel</button>
-  <button class="primary-btn" onclick="startPomodoro()">Start</button>
-</div>
-
-
-  <!-- ======================================================
-     MUSIC MODAL
-  ======================================================= -->
-
-  <div id="musicOverlay" class="modal-overlay"></div>
-
-  <div id="musicModal" class="modal-card">
-    <h3>Add YouTube Music</h3>
-
-    <label>Paste YouTube / YT Music Link</label>
-    <input
-      id="ytLinkInput"
-      placeholder="https://music.youtube.com/..."
-      autocomplete="off"
-    />
+    <label>Break Minutes</label>
+    <input id="breakInput" type="number" min="1" max="60" value="10" />
 
     <div class="modal-actions">
-      <button onclick="closeMusicModal()">Cancel</button>
-      <button class="primary-btn" onclick="loadYouTubeMusic()">Play</button>
+      <button onclick="closeTimerModal()">Cancel</button>
+      <button class="primary-btn" onclick="startPomodoro()">Start</button>
     </div>
+  </div>
+  <!-- ======================================================
+     MUSIC PANEL (DRAGGABLE)
+  ======================================================= -->
+
+  <div id="music-panel" class="music-panel">
+
+    <div id="music-header" class="music-header">
+      <div class="drag-handle">⋮⋮</div>
+      <h3>Background Music</h3>
+      <button class="close-btn" onclick="toggleMusicPanel()">✖</button>
+    </div>
+
+    <label style="font-size: 0.85rem; color: var(--muted); margin-bottom: 5px;">YouTube Link</label>
+    <div class="input-row">
+      <input id="ytLinkInput" placeholder="Paste YouTube link..." autocomplete="off" />
+      <button onclick="loadYouTubeMusic()">Load</button>
+    </div>
+
+    <div class="music-controls" style="display: none;" id="musicControlsArea">
+      <div class="playback-btns">
+        <button onclick="ytPrev()">⏮</button>
+        <button onclick="ytPlay()"><span id="playPauseIcon">⏸</span></button>
+        <button onclick="ytStop()">⏹</button>
+        <button onclick="ytNext()">⏭</button>
+      </div>
+
+      <div class="volume-control">
+        <span style="font-size: 14px;">🔈</span>
+        <input type="range" id="ytVolume" min="0" max="100" value="50" oninput="changeYtVolume(this.value)" />
+        <span style="font-size: 14px;">🔊</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ======================================================
+     SCREEN SHARE PANEL (DRAGGABLE / RESIZABLE)
+  ======================================================= -->
+  <div id="screen-share-panel" class="screenshare-panel">
+    <div id="screenshare-header" class="screenshare-header">
+      <div class="drag-handle">⋮⋮</div>
+      <h3>Screen Share</h3>
+      <button class="close-btn" onclick="stopScreenShare()">✖</button>
+    </div>
+    <div class="screenshare-content">
+      <video id="screenshare-video" autoplay playsinline muted></video>
+    </div>
+    <div id="screenshare-resize" class="resize-handle">↘</div>
   </div>
 
   <!-- Hidden YouTube Player -->
   <div id="yt-player" style="display:none;"></div>
+
+  <!-- ======================================================
+     PHASE TOAST NOTIFICATION
+  ======================================================= -->
+  <div id="phase-toast" class="toast">
+    <span id="toast-icon">⏱</span>
+    <span id="toast-message">Time for a break!</span>
+  </div>
 
   <!-- ======================================================
      BACKGROUND PANEL
@@ -146,9 +224,9 @@
     <div class="bg-option bg-sunset" onclick="setBackground('bg-sunset')"></div>
     <div class="bg-option bg-green" onclick="setBackground('bg-green')"></div>
   </div>
-  
+
   <audio id="alarmSound">
-    <source src="/assets/alarm.mp3" type="audio/mpeg">
+    <source src="../../public/ring.mp3" type="audio/mpeg">
   </audio>
 
 
@@ -159,14 +237,12 @@
   <!-- 1️⃣ Socket -->
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 
-  <!-- 2️⃣ YouTube API (must be before room.js) -->
-  <script src="https://www.youtube.com/iframe_api"></script>
-
-  <!-- 3️⃣ Theme -->
+  <!-- 2️⃣ Theme -->
   <script src="../js/theme.js"></script>
 
   <!-- 4️⃣ Room logic -->
   <script src="../js/room.js"></script>
 
 </body>
+
 </html>
