@@ -62,6 +62,10 @@
         return null;
       }
       const room = await res.json();
+      const titleEl = document.getElementById("prejoin-room-title");
+      if (titleEl && room.host) {
+        titleEl.textContent = `Join ${room.host}'s Room`;
+      }
       return room._id;
     }
     return roomIdParam;
@@ -163,6 +167,115 @@
       console.error("Critical Media error:", err);
     }
   }
+
+  /* ================= WEBRTC SIGNALING ================= */
+
+  function createPeer(targetId) {
+    if (peers[targetId]) return peers[targetId];
+
+    const peer = new RTCPeerConnection(rtcConfig);
+    peers[targetId] = peer;
+
+    if (localStream) {
+      localStream.getTracks().forEach(track => {
+        peer.addTrack(track, localStream);
+      });
+    }
+
+    if (screenTrack) {
+      peer.addTrack(screenTrack, localStream || new MediaStream());
+    }
+
+    peer.onicecandidate = (event) => {
+      if (event.candidate) {
+        socket.emit("ice-candidate", {
+          target: targetId,
+          candidate: event.candidate
+        });
+      }
+    };
+
+    peer.ontrack = (event) => {
+      const stream = event.streams[0];
+      let videoEl = document.getElementById(`video-${targetId}`);
+
+      if (!videoEl) {
+        videoEl = document.createElement("video");
+        videoEl.id = `video-${targetId}`;
+        videoEl.autoplay = true;
+        videoEl.playsInline = true;
+        videoEl.style.objectFit = "cover";
+
+        videoGrid?.appendChild(videoEl);
+        updateVideoLayout();
+      }
+
+      videoEl.srcObject = stream;
+    };
+
+    peer.onconnectionstatechange = () => {
+      if (peer.connectionState === "disconnected" || peer.connectionState === "failed" || peer.connectionState === "closed") {
+        const videoEl = document.getElementById(`video-${targetId}`);
+        if (videoEl) videoEl.remove();
+        delete peers[targetId];
+        updateVideoLayout();
+      }
+    };
+
+    return peer;
+  }
+
+  socket.on("video-ready", async ({ sender }) => {
+    const peer = createPeer(sender);
+    try {
+      const offer = await peer.createOffer();
+      await peer.setLocalDescription(offer);
+      socket.emit("video-offer", { target: sender, offer });
+    } catch (err) {
+      console.error("Error creating offer:", err);
+    }
+  });
+
+  socket.on("video-offer", async ({ sender, offer }) => {
+    const peer = createPeer(sender);
+    try {
+      await peer.setRemoteDescription(new RTCSessionDescription(offer));
+      const answer = await peer.createAnswer();
+      await peer.setLocalDescription(answer);
+      socket.emit("video-answer", { target: sender, answer });
+    } catch (err) {
+      console.error("Error creating answer:", err);
+    }
+  });
+
+  socket.on("video-answer", async ({ sender, answer }) => {
+    const peer = peers[sender];
+    if (peer) {
+      try {
+        await peer.setRemoteDescription(new RTCSessionDescription(answer));
+      } catch (err) {
+        console.error("Error setting answer:", err);
+      }
+    }
+  });
+
+  socket.on("ice-candidate", ({ sender, candidate }) => {
+    const peer = peers[sender];
+    if (peer) {
+      peer.addIceCandidate(new RTCIceCandidate(candidate))
+        .catch(err => console.error("ICE error:", err));
+    }
+  });
+
+  socket.on("user-disconnected", (id) => {
+    const videoEl = document.getElementById(`video-${id}`);
+    if (videoEl) videoEl.remove();
+    if (peers[id]) {
+      peers[id].close();
+      delete peers[id];
+    }
+    updateVideoLayout();
+  });
 
   /* ================= MEDIA CONTROLS ================= */
 
@@ -365,9 +478,13 @@
   let isMediaDetermined = false;
 
   function tryJoin() {
+    console.log("tryJoin called ->", { connected: !!socket?.connected, media: isMediaDetermined, roomId });
     if (socket.connected && isMediaDetermined && roomId) {
+      console.log("tryJoin Executing Emit: join-room ->", roomId);
       socket.emit("join-room", { roomId });
       initMedia();
+    } else {
+      console.warn("tryJoin Condition Failed: Skipping join-room emit");
     }
   }
 
@@ -381,19 +498,35 @@
   } else {
     // Show modal if joining from external link and parameter is missing
     const overlay = document.getElementById("prejoin-modal-overlay");
-    if (overlay) overlay.style.display = "flex";
+    const card = overlay?.querySelector(".modal-card");
+
+    if (overlay) {
+      overlay.style.display = "flex";
+      overlay.classList.add("active");
+    }
+    if (card) {
+      card.classList.add("active");
+    }
 
     document.getElementById("join-media-btn")?.addEventListener("click", () => {
       noMediaParam = "false";
       isMediaDetermined = true;
-      if (overlay) overlay.style.display = "none";
+
+      if (overlay) overlay.classList.remove("active");
+      if (card) card.classList.remove("active");
+      setTimeout(() => { if (overlay) overlay.style.display = "none"; }, 300);
+
       tryJoin();
     });
 
     document.getElementById("join-nomedia-btn")?.addEventListener("click", () => {
       noMediaParam = "true";
       isMediaDetermined = true;
-      if (overlay) overlay.style.display = "none";
+
+      if (overlay) overlay.classList.remove("active");
+      if (card) card.classList.remove("active");
+      setTimeout(() => { if (overlay) overlay.style.display = "none"; }, 300);
+
       tryJoin();
     });
   }
@@ -948,6 +1081,22 @@
       }
     });
   }
+
+  /* ================= ZEN MODE ================= */
+
+  window.toggleZenMode = function () {
+    const room = document.querySelector(".discord-room");
+    const btn = document.getElementById("btn-zen");
+    if (!room) return;
+
+    room.classList.toggle("zen-mode");
+
+    if (room.classList.contains("zen-mode")) {
+      if (btn) btn.innerHTML = "🧘‍♀️";
+    } else {
+      if (btn) btn.innerHTML = "🧘";
+    }
+  };
 
   /* ================= BACKGROUND PANEL ================= */
 

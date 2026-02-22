@@ -122,6 +122,19 @@ input::placeholder {
   display: grid;
   grid-template-columns: 260px 1fr 340px;
   height: 100vh;
+  transition: grid-template-columns 0.4s ease;
+}
+
+.discord-room.zen-mode {
+  grid-template-columns: 0px 1fr 0px;
+}
+
+.discord-room.zen-mode .participants-panel,
+.discord-room.zen-mode .chat-panel {
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
+  transition: opacity 0.2s ease;
 }
 
 /* ================= PARTICIPANTS ================= */

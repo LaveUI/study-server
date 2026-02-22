@@ -76,22 +76,24 @@ app.get("/rooms/my-rooms/:username", async (req, res) => {
 
 app.post("/rooms", async (req, res) => {
   try {
-    const { name, type, host } = req.body;
+    const { name, type, host, hostName } = req.body;
 
     if (!name || !type || !host) {
       return res.status(400).json({ error: "name, type and host required" });
     }
 
-    const room = await Room.create({
+    const room = new Room({
       name,
       type,
-      host, // 👈 HOST STORED
+      host,
+      hostName, // Tracks the display name of the host
       inviteCode:
         type === "private"
           ? crypto.randomBytes(4).toString("hex")
           : null,
     });
 
+    await room.save();
     res.status(201).json(room);
   } catch {
     res.status(500).json({ error: "Room creation failed" });
@@ -188,7 +190,11 @@ io.on("connection", (socket) => {
 
   socket.on("join-room", async ({ roomId }) => {
     try {
-      if (!roomId || !mongoose.Types.ObjectId.isValid(roomId)) return;
+      console.log(`-> JOIN REQUEST FROM: ${socket.user?.name} | ROOM: ${roomId}`);
+      if (!roomId || !mongoose.Types.ObjectId.isValid(roomId)) {
+        console.log("-> JOIN REJECTED: INVALID ROOM ID");
+        return;
+      }
 
       const room = await Room.findById(roomId);
       if (!room) return;
@@ -289,6 +295,7 @@ io.on("connection", (socket) => {
 
   socket.on("chat-message", async ({ roomId, message }) => {
     try {
+      console.log(`-> CHAT MSG FROM: ${socket.user?.name} | ROOM: ${roomId}`);
       if (!roomId || !mongoose.Types.ObjectId.isValid(roomId)) return;
       if (!message) return;
 
@@ -482,6 +489,8 @@ io.on("connection", (socket) => {
   socket.on("disconnect", () => {
     const { roomId } = socket;
     if (!roomId) return;
+
+    io.to(roomId).emit("user-disconnected", socket.id);
 
     if (onlineUsers[roomId]) {
       onlineUsers[roomId].delete(socket.user.name);
