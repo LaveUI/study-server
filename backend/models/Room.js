@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 const roomSchema = new mongoose.Schema({
   name: String,
   type: String, // public | private
+  host: String, // Tracks the creator of the room
   inviteCode: String,
   users: [String],
   createdAt: {

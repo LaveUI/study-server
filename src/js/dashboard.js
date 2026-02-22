@@ -129,12 +129,24 @@ document.addEventListener("DOMContentLoaded", () => {
         const div = document.createElement("div");
         div.className = "room-item glass";
         div.innerHTML = `
-          <strong>🌍 ${room.name}</strong>
-          <p class="muted">Public Room</p>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <strong>🌍 ${room.name}</strong>
+              <p class="muted">Public Room</p>
+            </div>
+            <div class="nomedia-wrapper" style="display: flex; align-items: center; gap: 6px;" title="Join without Mic/Cam">
+              <input type="checkbox" class="join-nomedia-cb" id="nomedia-pub-${room._id}" style="margin:0; width:auto; cursor:pointer;" />
+              <label for="nomedia-pub-${room._id}" style="margin:0; font-size: 0.75rem; cursor:pointer; color: var(--muted); white-space: nowrap;">No Mic/Cam</label>
+            </div>
+          </div>
         `;
 
-        div.addEventListener("click", () => {
-          window.location.href = `room.html?roomId=${room._id}`;
+        div.addEventListener("click", (e) => {
+          if (e.target.closest('.nomedia-wrapper')) return;
+
+          const noMedia = div.querySelector('.join-nomedia-cb')?.checked;
+          const urlParams = noMedia ? `&nomedia=true` : `&nomedia=false`;
+          window.location.href = `room.html?roomId=${room._id}${urlParams}`;
         });
 
         roomsList.appendChild(div);
@@ -148,81 +160,170 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  /* ================= LOAD USER'S ROOMS (PRIVATE & PUBLIC) ================= */
+
+  async function loadMyRooms() {
+    try {
+      if (!user.name) return;
+
+      const res = await fetch(`${API}/rooms/my-rooms/${encodeURIComponent(user.name)}`, {
+        headers: {
+          Authorization: "Bearer " + token,
+        },
+      });
+
+      if (!res.ok) return;
+
+      const rooms = await res.json();
+      const myRoomsSection = document.getElementById("myRoomsSection");
+      const myRoomsList = document.getElementById("myRoomsList");
+
+      if (!rooms.length) {
+        if (myRoomsSection) myRoomsSection.style.display = "none";
+        return;
+      }
+
+      if (myRoomsSection) myRoomsSection.style.display = "block";
+      if (myRoomsList) myRoomsList.innerHTML = "";
+
+      rooms.forEach(room => {
+        const div = document.createElement("div");
+        div.className = "room-item glass";
+
+        div.innerHTML = `
+          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+              <strong>${room.name}</strong>
+              <p class="muted">🔒 Private Room</p>
+              <p class="muted" style="font-size:0.8rem; margin-top:5px; margin-bottom:0;">Invite Link: <code>?invite=${room.inviteCode}</code></p>
+            </div>
+            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 10px;">
+              <button class="icon-btn delete-btn" style="background:transparent; border:none; cursor:pointer; font-size:1.2rem; padding: 0;" title="Cancel Session">🗑️</button>
+              <div class="nomedia-wrapper" style="display: flex; align-items: center; gap: 6px;" title="Join without Mic/Cam">
+                <input type="checkbox" class="join-nomedia-cb" id="nomedia-priv-${room._id}" style="margin:0; width:auto; cursor:pointer;" />
+                <label for="nomedia-priv-${room._id}" style="margin:0; font-size: 0.75rem; cursor:pointer; color: var(--muted); white-space: nowrap;">No Mic/Cam</label>
+              </div>
+            </div>
+          </div>
+        `;
+
+        div.addEventListener("click", (e) => {
+          if (e.target.closest('.delete-btn') || e.target.closest('.nomedia-wrapper')) return; // Ignore if user clicked delete or checkbox
+
+          const noMedia = div.querySelector('.join-nomedia-cb')?.checked;
+          const urlParams = noMedia ? `&nomedia=true` : `&nomedia=false`;
+          window.location.href = `room.html?roomId=${room._id}${urlParams}`;
+        });
+
+        const deleteBtn = div.querySelector('.delete-btn');
+        deleteBtn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          if (confirm("Are you sure you want to cancel and delete this private room?")) {
+            try {
+              const res = await fetch(`${API}/rooms/${room._id}`, {
+                method: "DELETE",
+                headers: {
+                  Authorization: "Bearer " + token,
+                },
+              });
+              if (res.ok) {
+                loadMyRooms(); // Refresh the list
+              } else {
+                alert("Failed to delete the room.");
+              }
+            } catch (err) {
+              console.error("Delete error:", err);
+            }
+          }
+        });
+
+        myRoomsList.appendChild(div);
+      });
+
+    } catch (err) {
+      console.error("Failed to load user rooms:", err);
+    }
+  }
+
   /* ================= CREATE ROOM ================= */
 
-/* ================= ROOM MODAL LOGIC ================= */
+  /* ================= ROOM MODAL LOGIC ================= */
 
-const modal = document.getElementById("roomModal");
-const overlay = document.getElementById("roomModalOverlay");
+  const modal = document.getElementById("roomModal");
+  const overlay = document.getElementById("roomModalOverlay");
 
-const publicBtn = document.getElementById("publicBtn");
-const privateBtn = document.getElementById("privateBtn");
+  const publicBtn = document.getElementById("publicBtn");
+  const privateBtn = document.getElementById("privateBtn");
 
-let selectedType = "public";
+  let selectedType = "public";
 
-createBtn.addEventListener("click", () => {
-  modal.classList.add("active");
-  overlay.classList.add("active");
-});
+  createBtn.addEventListener("click", () => {
+    modal.classList.add("active");
+    overlay.classList.add("active");
+  });
 
-window.closeRoomModal = function () {
-  modal.classList.remove("active");
-  overlay.classList.remove("active");
-};
+  window.closeRoomModal = function () {
+    modal.classList.remove("active");
+    overlay.classList.remove("active");
+  };
 
-overlay.addEventListener("click", closeRoomModal);
+  overlay.addEventListener("click", closeRoomModal);
 
-publicBtn.addEventListener("click", () => {
-  selectedType = "public";
-  publicBtn.classList.add("active");
-  privateBtn.classList.remove("active");
-});
+  publicBtn.addEventListener("click", () => {
+    selectedType = "public";
+    publicBtn.classList.add("active");
+    privateBtn.classList.remove("active");
+  });
 
-privateBtn.addEventListener("click", () => {
-  selectedType = "private";
-  privateBtn.classList.add("active");
-  publicBtn.classList.remove("active");
-});
+  privateBtn.addEventListener("click", () => {
+    selectedType = "private";
+    privateBtn.classList.add("active");
+    publicBtn.classList.remove("active");
+  });
 
-window.submitRoom = async function () {
+  window.submitRoom = async function () {
 
-  const name = document.getElementById("roomNameInput").value.trim();
-  if (!name) return alert("Enter room name");
+    const name = document.getElementById("roomNameInput").value.trim();
+    if (!name) return alert("Enter room name");
 
-  try {
+    try {
 
-    const res = await fetch(`${API}/rooms`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: "Bearer " + token,
-      },
-      body: JSON.stringify({
-        name,
-        type: selectedType,
-        host: user.name
-      }),
-    });
+      const res = await fetch(`${API}/rooms`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + token,
+        },
+        body: JSON.stringify({
+          name,
+          type: selectedType,
+          host: user.name
+        }),
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (!res.ok) {
-      alert(data.error || "Failed to create room.");
-      return;
+      if (!res.ok) {
+        alert(data.error || "Failed to create room.");
+        return;
+      }
+
+      const noMedia = document.getElementById("noMediaCheckbox")?.checked;
+      const urlParams = noMedia ? `&nomedia=true` : `&nomedia=false`;
+
+      closeRoomModal();
+
+      window.location.href = `room.html?roomId=${data._id}${urlParams}`;
+
+    } catch (err) {
+      alert("Something went wrong.");
     }
-
-    closeRoomModal();
-
-    window.location.href = `room.html?roomId=${data._id}`;
-
-  } catch (err) {
-    alert("Something went wrong.");
-  }
-};
+  };
 
 
   /* ================= INITIAL LOAD ================= */
 
   loadRooms();
+  loadMyRooms();
 
 });

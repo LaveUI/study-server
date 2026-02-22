@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -24,6 +25,12 @@
     <button id="privateBtn" class="toggle">Private</button>
   </div>
 
+  <div style="margin-top: 15px; display: flex; align-items: center; gap: 8px;">
+    <input type="checkbox" id="noMediaCheckbox" style="margin: 0; width: auto;" />
+    <label for="noMediaCheckbox" style="margin: 0; font-size: 0.9rem; cursor: pointer; color: var(--muted);">Join
+      without Camera & Mic</label>
+  </div>
+
   <div class="modal-actions">
     <button onclick="closeRoomModal()">Cancel</button>
     <button class="primary-btn" onclick="submitRoom()">Create</button>
@@ -41,25 +48,27 @@
       <h3>📚 Study Server</h3>
     </div>
 
-    <div class="header-right">
+    <div class="header-right" style="display: flex; align-items: center; gap: 15px;">
 
-      <div class="user-chip" id="profileTrigger">
-        <img id="header-avatar" class="chip-avatar">
-        <div class="chip-info">
-        <span id="user-name"></span>
-        <small class="muted">Online</small>
+      <div class="header-right" style="display: flex; align-items: center; gap: 15px;">
+
+        <div class="user-chip" id="profileTrigger">
+          <img id="header-avatar" class="chip-avatar">
+          <div class="chip-info">
+            <span id="user-name"></span>
+            <small class="muted">Online</small>
+          </div>
+        </div>
+
+        <button id="logoutBtn" class="danger-btn">
+          Logout
+        </button>
+
+        <button onclick="toggleTheme()" class="icon-btn">
+          🌗
+        </button>
+
       </div>
-    </div>
-
-    <button id="logoutBtn" class="danger-btn">
-      Logout
-    </button>
-
-  <button onclick="toggleTheme()" class="icon-btn">
-    🌗
-  </button>
-
-</div>
 
 
   </header>
@@ -81,6 +90,15 @@
       </button>
     </section>
 
+    <section class="rooms-section" id="myRoomsSection" style="display: none; margin-bottom: 2rem;">
+      <div class="rooms-header">
+        <h3>Your Private Rooms</h3>
+      </div>
+      <div id="myRoomsList" class="rooms-grid"></div>
+    </section>
+
+
+
     <section class="rooms-section">
       <div class="rooms-header">
         <h3>Available Public Rooms</h3>
@@ -91,53 +109,50 @@
   </main>
 
 
-<!-- ================= PROFILE DRAWER ================= -->
+  <!-- ================= PROFILE DRAWER ================= -->
 
-<div id="profile-overlay" class="profile-overlay"></div>
+  <div id="profile-overlay" class="profile-overlay"></div>
 
-<div id="profile-drawer" class="profile-drawer">
+  <div id="profile-drawer" class="profile-drawer">
 
-  <div class="profile-header">
-    <h3>Your Profile</h3>
-    <span class="close-btn" id="closeProfileBtn">✕</span>
+    <div class="profile-header">
+      <h3>Your Profile</h3>
+      <span class="close-btn" id="closeProfileBtn">✕</span>
+    </div>
+
+    <div class="profile-content">
+
+      <div class="profile-avatar-wrapper">
+        <img id="profile-pic" class="profile-avatar-img" />
+        <div class="avatar-ring"></div>
+      </div>
+
+      <div class="profile-section">
+        <label>Name</label>
+        <input id="profile-name" disabled />
+      </div>
+
+      <div class="profile-section">
+        <label>Role</label>
+        <select id="profile-role">
+          <option value="School Student">School Student</option>
+          <option value="College Student">College Student</option>
+          <option value="Professional">Professional</option>
+        </select>
+      </div>
+
+      <div class="profile-section">
+        <label>Interests</label>
+        <input id="profile-interests" placeholder="Coding, UPSC, Physics..." />
+      </div>
+
+      <button class="save-profile-btn">
+        💾 Save Changes
+      </button>
+
+    </div>
+
   </div>
-
-  <div class="profile-content">
-
-    <div class="profile-avatar-wrapper">
-      <img id="profile-pic" class="profile-avatar-img" />
-      <div class="avatar-ring"></div>
-    </div>
-
-    <div class="profile-section">
-      <label>Name</label>
-      <input id="profile-name" disabled />
-    </div>
-
-    <div class="profile-section">
-      <label>Role</label>
-      <select id="profile-role">
-        <option value="School Student">School Student</option>
-        <option value="College Student">College Student</option>
-        <option value="Professional">Professional</option>
-      </select>
-    </div>
-
-    <div class="profile-section">
-      <label>Interests</label>
-      <input
-        id="profile-interests"
-        placeholder="Coding, UPSC, Physics..."
-      />
-    </div>
-
-    <button class="save-profile-btn">
-      💾 Save Changes
-    </button>
-
-  </div>
-
-</div>
 
 
 
@@ -147,4 +162,5 @@
   <script src="../js/dashboard.js"></script>
 
 </body>
+
 </html>

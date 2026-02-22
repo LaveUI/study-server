@@ -37,6 +37,7 @@
   const params = new URLSearchParams(window.location.search);
   const roomIdParam = params.get("roomId");
   const invite = params.get("invite");
+  let noMediaParam = params.get("nomedia");
 
   let roomId;
 
@@ -91,36 +92,99 @@
     try {
       if (localStream) return; // Prevent duplicate initialization on reconnects
 
-      localStream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true
-      });
+      try {
+        if (noMediaParam === 'true') {
+          throw new Error("User requested no-media mode via dashboard toggle");
+        }
 
-      cameraTrack = localStream.getVideoTracks()[0];
+        // 1st attempt: Camera and Mic
+        localStream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: true
+        });
+      } catch (err) {
+        if (noMediaParam === 'true') {
+          console.log("Initializing in Spectator Mode (No Media Requested)");
+        } else {
+          console.warn("Camera failed. Trying audio only.", err);
+        }
 
-      // Remove any existing self-video just in case
-      const existingVideo = document.getElementById("self-video");
-      if (existingVideo) existingVideo.remove();
+        try {
+          if (noMediaParam === 'true') throw new Error("Skipping audio too");
 
-      const myVideo = document.createElement("video");
-      myVideo.id = "self-video";
-      myVideo.srcObject = localStream;
-      myVideo.muted = true;
-      myVideo.autoplay = true;
-      myVideo.playsInline = true;
-      myVideo.style.transform = "scaleX(-1)";
-      myVideo.style.objectFit = "cover";
+          // 2nd attempt: Mic only
+          localStream = await navigator.mediaDevices.getUserMedia({
+            video: false,
+            audio: true
+          });
+          alert("No camera detected. Joined room with Audio Only.");
+        } catch (audioErr) {
+          // 3rd attempt: Empty stream (Spectator)
+          localStream = new MediaStream();
+        }
+      }
 
-      videoGrid?.appendChild(myVideo);
-      updateVideoLayout();
+      // If we have video tracks, set them up. Otherwise, skip the video element
+      if (localStream.getVideoTracks().length > 0) {
+        cameraTrack = localStream.getVideoTracks()[0];
 
+        // Remove any existing self-video just in case
+        const existingVideo = document.getElementById("self-video");
+        if (existingVideo) existingVideo.remove();
+
+        const myVideo = document.createElement("video");
+        myVideo.id = "self-video";
+        myVideo.srcObject = localStream;
+        myVideo.muted = true;
+        myVideo.autoplay = true;
+        myVideo.playsInline = true;
+        myVideo.style.transform = "scaleX(-1)";
+        myVideo.style.objectFit = "cover";
+
+        videoGrid?.appendChild(myVideo);
+        updateVideoLayout();
+      } else {
+        // Make sure the layout handles the lack of our own video
+        updateVideoLayout();
+      }
+
+      // Default mic to OFF
+      const audioTracks = localStream.getAudioTracks();
+      if (audioTracks.length > 0) {
+        audioTracks[0].enabled = false;
+        const micBtn = document.querySelector(`button[onclick="toggleMic()"]`);
+        if (micBtn) micBtn.style.opacity = "0.5";
+      }
+
+      // Signal readiness to peers regardless of what devices we had
       socket.emit("video-ready", { roomId });
 
     } catch (err) {
-      console.error("Media error:", err);
-      alert("Camera/Microphone permission required.");
+      console.error("Critical Media error:", err);
     }
   }
+
+  /* ================= MEDIA CONTROLS ================= */
+
+  window.toggleMic = function () {
+    if (!localStream) return;
+    const audioTrack = localStream.getAudioTracks()[0];
+    if (audioTrack) {
+      audioTrack.enabled = !audioTrack.enabled;
+      const btn = document.querySelector(`button[onclick="toggleMic()"]`);
+      if (btn) btn.style.opacity = audioTrack.enabled ? "1" : "0.5";
+    }
+  };
+
+  window.toggleCamera = function () {
+    if (!localStream) return;
+    const videoTrack = localStream.getVideoTracks()[0];
+    if (videoTrack) {
+      videoTrack.enabled = !videoTrack.enabled;
+      const btn = document.querySelector(`button[onclick="toggleCamera()"]`);
+      if (btn) btn.style.opacity = videoTrack.enabled ? "1" : "0.5";
+    }
+  };
 
   /* ================= MUSIC SYSTEM (FIXED PROPERLY) ================= */
 
@@ -296,12 +360,43 @@
     }
   };
 
-  /* ================= SOCKET CONNECT ================= */
+  /* ================= PRE-JOIN & SOCKET CONNECT ================= */
+
+  let isMediaDetermined = false;
+
+  function tryJoin() {
+    if (socket.connected && isMediaDetermined && roomId) {
+      socket.emit("join-room", { roomId });
+      initMedia();
+    }
+  }
 
   socket.on("connect", () => {
-    socket.emit("join-room", { roomId });
-    initMedia();
+    tryJoin();
   });
+
+  if (noMediaParam === "true" || noMediaParam === "false") {
+    isMediaDetermined = true;
+    tryJoin();
+  } else {
+    // Show modal if joining from external link and parameter is missing
+    const overlay = document.getElementById("prejoin-modal-overlay");
+    if (overlay) overlay.style.display = "flex";
+
+    document.getElementById("join-media-btn")?.addEventListener("click", () => {
+      noMediaParam = "false";
+      isMediaDetermined = true;
+      if (overlay) overlay.style.display = "none";
+      tryJoin();
+    });
+
+    document.getElementById("join-nomedia-btn")?.addEventListener("click", () => {
+      noMediaParam = "true";
+      isMediaDetermined = true;
+      if (overlay) overlay.style.display = "none";
+      tryJoin();
+    });
+  }
 
   /* ================= PRESENCE ================= */
 
@@ -320,6 +415,49 @@
 
     if (counter) counter.textContent = `Online: ${count}`;
   });
+
+  socket.on("room-info", (info) => {
+    const roomTypeSpan = document.getElementById("room-type");
+    if (roomTypeSpan) {
+      roomTypeSpan.innerText = info.type === "private" ? "🔒 Private" : "🌍 Public";
+    }
+
+    const stageHeader = document.querySelector(".stage-header h2");
+    if (stageHeader) {
+      stageHeader.innerText = `📚 ${info.name}`;
+    }
+
+    if (info.type === "private" && info.inviteCode) {
+      const inviteBox = document.getElementById("invite-box");
+      const inviteLink = document.getElementById("invite-link");
+      if (inviteBox && inviteLink) {
+        inviteBox.style.display = "flex";
+        inviteLink.value = `${window.location.origin}/src/pages/room.html?invite=${info.inviteCode}`;
+      }
+    } else if (info.type === "public") {
+      // Restrict controls for public rooms
+      document.getElementById("btn-mic")?.remove();
+      document.getElementById("btn-screen")?.remove();
+      document.getElementById("btn-bg")?.remove();
+      document.getElementById("btn-timer")?.remove();
+      document.getElementById("tab-room-btn")?.remove();
+
+      // Force mute audio tracks if established
+      if (localStream) {
+        localStream.getAudioTracks().forEach(track => {
+          track.enabled = false;
+        });
+      }
+    }
+  });
+
+  window.copyInvite = function () {
+    const inviteLink = document.getElementById("invite-link");
+    if (!inviteLink) return;
+    navigator.clipboard.writeText(inviteLink.value)
+      .then(() => alert("Invite link copied to clipboard!"))
+      .catch(err => console.error("Could not copy text: ", err));
+  };
 
   /* ================= CHAT ================= */
 
@@ -553,10 +691,6 @@
   const screenVideo = document.getElementById("screenshare-video");
 
   window.shareScreen = async () => {
-    if (!localStream) {
-      alert("Initialize camera first.");
-      return;
-    }
 
     try {
       const screenStream = await navigator.mediaDevices.getDisplayMedia({
@@ -572,12 +706,19 @@
       }
 
       // Send to peers (replaces the outgoing video track with screen briefly)
-      // *Note: A full dual-stream (cam+screen simultaneously for everyone) requires 
-      //  adding a second RtcSender for each peer, but this simple replaceTrack 
+      // *Note: A full dual-stream (cam+screen simultaneously for everyone) requires
+      //  adding a second RtcSender for each peer, but this simple replaceTrack
       //  method keeps bandwidth low.
       Object.values(peers).forEach(peer => {
-        const sender = peer.getSenders().find(s => s.track?.kind === "video");
-        if (sender) sender.replaceTrack(screenTrack);
+        // Find existing video sender or null sender if we were audio only
+        const sender = peer.getSenders().find(s => s.track === null || s.track?.kind === "video");
+
+        if (sender) {
+          sender.replaceTrack(screenTrack);
+        } else {
+          // If no sender exists at all, explicitly add the track
+          peer.addTrack(screenTrack, localStream || new MediaStream());
+        }
       });
 
       // Handle user clicking "Stop sharing" natively in browser UI
@@ -598,13 +739,13 @@
     if (screenPanel) screenPanel.classList.remove("active");
     if (screenVideo) screenVideo.srcObject = null;
 
-    // Restore camera to peers
-    if (cameraTrack) {
-      Object.values(peers).forEach(peer => {
-        const sender = peer.getSenders().find(s => s.track);
-        if (sender) sender.replaceTrack(cameraTrack);
-      });
-    }
+    // Restore camera to peers if we have one, otherwise replace with null
+    Object.values(peers).forEach(peer => {
+      const sender = peer.getSenders().find(s => s.track);
+      if (sender) {
+        sender.replaceTrack(cameraTrack || null);
+      }
+    });
   };
 
   /* --- Screen Share Dragging --- */

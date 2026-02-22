@@ -59,6 +59,19 @@ app.get("/rooms", async (req, res) => {
   }
 });
 
+/* ---------- Get User's Private Rooms (Dashboard lookup) ---------- */
+
+app.get("/rooms/my-rooms/:username", async (req, res) => {
+  try {
+    const username = req.params.username;
+    // Find private rooms where this user is the host
+    const rooms = await Room.find({ host: username, type: "private" });
+    res.json(rooms);
+  } catch {
+    res.status(500).json({ error: "Failed to load your rooms" });
+  }
+});
+
 /* ---------- Create Room (Host Enabled) ---------- */
 
 app.post("/rooms", async (req, res) => {
@@ -101,6 +114,23 @@ app.get("/rooms/invite/:code", async (req, res) => {
     res.json(room);
   } catch {
     res.status(500).json({ error: "Invite lookup failed" });
+  }
+});
+
+/* ---------- Delete Room ---------- */
+
+app.delete("/rooms/:id", async (req, res) => {
+  try {
+    const roomId = req.params.id;
+    const deletedRoom = await Room.findByIdAndDelete(roomId);
+
+    if (!deletedRoom) {
+      return res.status(404).json({ error: "Room not found" });
+    }
+
+    res.json({ success: true, message: "Room deleted successfully" });
+  } catch {
+    res.status(500).json({ error: "Failed to delete room" });
   }
 });
 
@@ -190,6 +220,12 @@ io.on("connection", (socket) => {
 
       socket.emit("chat-history", messages);
       socket.emit("room-goals-update", roomGoals[roomId] || []);
+
+      socket.emit("room-info", {
+        name: room.name,
+        type: room.type,
+        inviteCode: room.inviteCode
+      });
 
     } catch (err) {
       console.error("Join room error:", err);
