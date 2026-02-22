@@ -142,6 +142,24 @@ input::placeholder {
 #participants-list li {
   padding: 8px 0;
   font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-dropdown {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  outline: none;
+}
+
+.status-dropdown:focus {
+  border-color: var(--accent);
 }
 
 /* ================= MUSIC PANEL (DRAGGABLE) ================= */
@@ -600,6 +618,50 @@ input::placeholder {
 
 .msg.own {
   background: rgba(88, 101, 242, 0.2);
+}
+
+.msg.mentioned-msg {
+  background: var(--panel-2);
+  border: 1px solid var(--accent);
+  box-shadow: 0 0 10px rgba(88, 101, 242, 0.3);
+}
+
+.mention-tag {
+  color: #fff;
+  background: var(--accent);
+  padding: 0 4px;
+  border-radius: 4px;
+  font-weight: bold;
+}
+
+.mention-popup {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  width: 100%;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  max-height: 150px;
+  overflow-y: auto;
+  display: none;
+  z-index: 1000;
+  margin-bottom: 8px;
+}
+
+.mention-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+
+.mention-item:hover,
+.mention-item.selected {
+  background: var(--panel-2);
 }
 
 .chat-input-wrapper {

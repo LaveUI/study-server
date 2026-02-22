@@ -2,11 +2,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const API = "http://localhost:5000";
 
-  const token = localStorage.getItem("token");
-  const userData = localStorage.getItem("user");
+  const token = sessionStorage.getItem("token");
+  const userData = sessionStorage.getItem("user");
 
   if (!token || !userData) {
-    localStorage.clear();
+    sessionStorage.clear();
     window.location.href = "login.html";
     return;
   }
@@ -32,8 +32,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (logoutBtn) {
     logoutBtn.addEventListener("click", () => {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
+      sessionStorage.removeItem("token");
+      sessionStorage.removeItem("user");
       window.location.href = "login.html";
     });
   }
@@ -60,7 +60,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (profileName) profileName.value = user.name;
 
     const savedProfile =
-      JSON.parse(localStorage.getItem("profile")) || {};
+      JSON.parse(sessionStorage.getItem("profile")) || {};
 
     const roleSelect = document.getElementById("profile-role");
     const interestsInput = document.getElementById("profile-interests");
@@ -97,7 +97,7 @@ document.addEventListener("DOMContentLoaded", () => {
         interests: document.getElementById("profile-interests")?.value
       };
 
-      localStorage.setItem("profile", JSON.stringify(profileData));
+      sessionStorage.setItem("profile", JSON.stringify(profileData));
 
       closeProfile();
     });
@@ -155,7 +155,7 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch (err) {
       console.error("Load rooms error:", err);
       alert("Session expired. Please login again.");
-      localStorage.clear();
+      sessionStorage.clear();
       window.location.href = "login.html";
     }
   }

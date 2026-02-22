@@ -10,14 +10,14 @@
     "bg-green"
   ];
 
-  const savedBg = localStorage.getItem("bgTheme") || "bg-default";
+  const savedBg = sessionStorage.getItem("bgTheme") || "bg-default";
   document.body.classList.remove(...BG_CLASSES);
   document.body.classList.add(savedBg);
 
   /* ================= AUTH ================= */
 
-  const token = localStorage.getItem("token");
-  const userObj = localStorage.getItem("user");
+  const token = sessionStorage.getItem("token");
+  const userObj = sessionStorage.getItem("user");
 
   if (!token || !userObj) {
     window.location.href = "login.html";
@@ -400,7 +400,10 @@
 
   /* ================= PRESENCE ================= */
 
+  let roomUsers = [];
+
   socket.on("presence-update", ({ users, count }) => {
+    roomUsers = users.map(u => u.name);
     const list = document.getElementById("participants-list");
     const counter = document.getElementById("online-count");
 
@@ -408,12 +411,21 @@
       list.innerHTML = "";
       users.forEach(u => {
         const li = document.createElement("li");
-        li.innerHTML = `🟢 ${u}`;
+
+        let emoji = "🟢";
+        if (u.status === "idle") emoji = "🌙";
+        if (u.status === "dnd") emoji = "🔴";
+
+        li.innerHTML = `${emoji} ${u.name}`;
         list.appendChild(li);
       });
     }
 
     if (counter) counter.textContent = `Online: ${count}`;
+  });
+
+  document.getElementById("user-status")?.addEventListener("change", (e) => {
+    socket.emit("change-status", { status: e.target.value });
   });
 
   socket.on("room-info", (info) => {
@@ -462,20 +474,115 @@
   /* ================= CHAT ================= */
 
   const input = document.getElementById("chat-input");
+  const mentionPopup = document.getElementById("mention-popup");
+
+  let mentionSearch = "";
+  let mentionIndex = 0;
+  let isMentioning = false;
+  let mentionUsersList = [];
+
+  function renderMentionPopup() {
+    if (!mentionPopup) return;
+    mentionPopup.innerHTML = "";
+    mentionUsersList.forEach((u, idx) => {
+      const div = document.createElement("div");
+      div.className = "mention-item" + (idx === mentionIndex ? " selected" : "");
+      div.innerHTML = `<strong>@${u}</strong>`;
+
+      div.onmousedown = (e) => {
+        e.preventDefault();
+        insertMention(u);
+      };
+
+      mentionPopup.appendChild(div);
+    });
+  }
+
+  function insertMention(username) {
+    if (!input) return;
+    const val = input.value;
+    const cursor = input.selectionStart;
+    const textBeforeCursor = val.slice(0, cursor);
+    const textAfterCursor = val.slice(cursor);
+
+    const newTextBefore = textBeforeCursor.replace(/@([a-zA-Z0-9_ ]*)$/, `@${username} `);
+    input.value = newTextBefore + textAfterCursor;
+
+    if (mentionPopup) mentionPopup.style.display = "none";
+    isMentioning = false;
+    input.focus();
+  }
+
+  input?.addEventListener("input", (e) => {
+    const val = input.value;
+    const cursor = input.selectionStart;
+    const textBeforeCursor = val.slice(0, cursor);
+    const lastAtMatch = textBeforeCursor.match(/@([a-zA-Z0-9_ ]*)$/);
+
+    if (lastAtMatch) {
+      isMentioning = true;
+      mentionSearch = lastAtMatch[1].toLowerCase();
+      mentionUsersList = roomUsers.filter(u => u.toLowerCase().startsWith(mentionSearch) && u !== user);
+
+      if (mentionUsersList.length > 0) {
+        mentionIndex = 0;
+        if (mentionPopup) {
+          mentionPopup.style.display = "block";
+          renderMentionPopup();
+        }
+      } else {
+        if (mentionPopup) mentionPopup.style.display = "none";
+      }
+    } else {
+      isMentioning = false;
+      if (mentionPopup) mentionPopup.style.display = "none";
+    }
+  });
+
+  input?.addEventListener("blur", () => {
+    setTimeout(() => {
+      if (mentionPopup) mentionPopup.style.display = "none";
+      isMentioning = false;
+    }, 150);
+  });
 
   function renderMessage(sender, message, createdAt) {
     const container = document.getElementById("messages");
     if (!container) return;
 
     const div = document.createElement("div");
+
+    // Check if current user is mentioned
+    const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const mentionPattern = new RegExp(`@${escapeRegExp(user)}(?=\\W|$)`, 'i');
+    const isMentioned = mentionPattern.test(message) && sender !== user;
+
+    if (isMentioned) {
+      playNotificationSound();
+    }
+
+    // Format all @mentions visually for everyone
+    let formattedMessage = message;
+    const escapedUsers = roomUsers.map(u => escapeRegExp(u));
+    if (escapedUsers.length > 0) {
+      escapedUsers.sort((a, b) => b.length - a.length);
+      const mentionRegex = new RegExp(`@(${escapedUsers.join('|')})(?=\\W|$)`, 'gi');
+      formattedMessage = message.replace(mentionRegex, '<span class="mention-tag">@$1</span>');
+    } else {
+      formattedMessage = message.replace(/@([a-zA-Z0-9_]+)/g, '<span class="mention-tag">@$1</span>');
+    }
+
     div.className = sender === user ? "msg own" : "msg";
+    if (isMentioned) {
+      div.classList.add("mentioned-msg");
+    }
 
     div.innerHTML = `
     <strong>${sender}</strong>
     <span style="font-size:10px;margin-left:6px;">
       ${new Date(createdAt).toLocaleTimeString()}
     </span>
-    <div>${message}</div>
+    <div style="margin-top: 4px; word-break: break-word;">${formattedMessage}</div>
   `;
 
     container.appendChild(div);
@@ -494,12 +601,34 @@
   );
 
   input?.addEventListener("keydown", e => {
+    if (isMentioning && mentionPopup && mentionPopup.style.display === "block") {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        mentionIndex = (mentionIndex + 1) % mentionUsersList.length;
+        renderMentionPopup();
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        mentionIndex = (mentionIndex - 1 + mentionUsersList.length) % mentionUsersList.length;
+        renderMentionPopup();
+        return;
+      }
+      if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault();
+        insertMention(mentionUsersList[mentionIndex]);
+        return;
+      }
+    }
+
     if (e.key === "Enter" && input.value.trim()) {
       socket.emit("chat-message", {
         roomId,
         message: input.value.trim()
       });
       input.value = "";
+      if (mentionPopup) mentionPopup.style.display = "none";
+      isMentioning = false;
     }
   });
 
@@ -826,7 +955,7 @@
     if (!BG_CLASSES.includes(bgClass)) return;
     document.body.classList.remove(...BG_CLASSES);
     document.body.classList.add(bgClass);
-    localStorage.setItem("bgTheme", bgClass);
+    sessionStorage.setItem("bgTheme", bgClass);
   };
 
   window.toggleBgPanel = function () {
@@ -906,10 +1035,10 @@
 
   /* --- Personal Goals --- */
 
-  let personalGoals = JSON.parse(localStorage.getItem("personalTasks")) || [];
+  let personalGoals = JSON.parse(sessionStorage.getItem("personalTasks")) || [];
 
   function savePersonalGoals() {
-    localStorage.setItem("personalTasks", JSON.stringify(personalGoals));
+    sessionStorage.setItem("personalTasks", JSON.stringify(personalGoals));
   }
 
   window.renderPersonalGoals = function () {

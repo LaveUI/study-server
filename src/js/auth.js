@@ -18,8 +18,8 @@ async function handleGoogleLogin(response) {
     }
 
     // ✅ store BOTH token and user
-    localStorage.setItem("token", data.token);
-    localStorage.setItem("user", JSON.stringify(data.user));
+    sessionStorage.setItem("token", data.token);
+    sessionStorage.setItem("user", JSON.stringify(data.user));
 
     window.location.href = "dashboard.html";
   } catch (err) {

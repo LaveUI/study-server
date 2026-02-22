@@ -202,14 +202,18 @@ io.on("connection", (socket) => {
       /* ----- Presence ----- */
 
       if (!onlineUsers[roomId]) {
-        onlineUsers[roomId] = new Set();
+        onlineUsers[roomId] = new Map();
       }
 
-      onlineUsers[roomId].add(socket.user.name);
+      onlineUsers[roomId].set(socket.user.name, "online");
+
+      const publicUsers = Array.from(onlineUsers[roomId].entries())
+        .map(([name, status]) => ({ name, status }))
+        .filter(u => u.status !== "ghost");
 
       io.to(roomId).emit("presence-update", {
-        users: Array.from(onlineUsers[roomId]),
-        count: onlineUsers[roomId].size,
+        users: publicUsers,
+        count: publicUsers.length,
       });
 
       /* ----- Send Chat History & Goals ----- */
@@ -229,6 +233,26 @@ io.on("connection", (socket) => {
 
     } catch (err) {
       console.error("Join room error:", err);
+    }
+  });
+
+  /* ================= PRESENCE STATUS ================= */
+
+  socket.on("change-status", ({ status }) => {
+    const { roomId } = socket;
+    if (!roomId || !onlineUsers[roomId]) return;
+
+    if (onlineUsers[roomId].has(socket.user.name)) {
+      onlineUsers[roomId].set(socket.user.name, status);
+
+      const publicUsers = Array.from(onlineUsers[roomId].entries())
+        .map(([name, s]) => ({ name, status: s }))
+        .filter(u => u.status !== "ghost");
+
+      io.to(roomId).emit("presence-update", {
+        users: publicUsers,
+        count: publicUsers.length,
+      });
     }
   });
 
@@ -462,9 +486,13 @@ io.on("connection", (socket) => {
     if (onlineUsers[roomId]) {
       onlineUsers[roomId].delete(socket.user.name);
 
+      const publicUsers = Array.from(onlineUsers[roomId].entries())
+        .map(([name, status]) => ({ name, status }))
+        .filter(u => u.status !== "ghost");
+
       io.to(roomId).emit("presence-update", {
-        users: Array.from(onlineUsers[roomId]),
-        count: onlineUsers[roomId].size,
+        users: publicUsers,
+        count: publicUsers.length,
       });
 
       if (onlineUsers[roomId].size === 0) {
