@@ -577,7 +577,7 @@
       const inviteLink = document.getElementById("invite-link");
       if (inviteBox && inviteLink) {
         inviteBox.style.display = "flex";
-        inviteLink.value = `${window.location.origin}/src/pages/room.html?invite=${info.inviteCode}`;
+        inviteLink.value = `${window.location.origin}/pages/room.html?invite=${info.inviteCode}`;
       }
     } else if (info.type === "public") {
       // Restrict controls for public rooms
