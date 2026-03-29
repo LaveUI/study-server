@@ -10,14 +10,14 @@
     "bg-green"
   ];
 
-  const savedBg = sessionStorage.getItem("bgTheme") || "bg-default";
+  const savedBg = localStorage.getItem("bgTheme") || "bg-default";
   document.body.classList.remove(...BG_CLASSES);
   document.body.classList.add(savedBg);
 
   /* ================= AUTH ================= */
 
-  const token = sessionStorage.getItem("token");
-  const userObj = sessionStorage.getItem("user");
+  const token = localStorage.getItem("token");
+  const userObj = localStorage.getItem("user");
 
   if (!token || !userObj) {
     window.location.href = "login.html";
@@ -1104,7 +1104,7 @@
     if (!BG_CLASSES.includes(bgClass)) return;
     document.body.classList.remove(...BG_CLASSES);
     document.body.classList.add(bgClass);
-    sessionStorage.setItem("bgTheme", bgClass);
+    localStorage.setItem("bgTheme", bgClass);
   };
 
   window.toggleBgPanel = function () {
@@ -1184,10 +1184,10 @@
 
   /* --- Personal Goals --- */
 
-  let personalGoals = JSON.parse(sessionStorage.getItem("personalTasks")) || [];
+  let personalGoals = JSON.parse(localStorage.getItem("personalTasks")) || [];
 
   function savePersonalGoals() {
-    sessionStorage.setItem("personalTasks", JSON.stringify(personalGoals));
+    localStorage.setItem("personalTasks", JSON.stringify(personalGoals));
   }
 
   window.renderPersonalGoals = function () {
