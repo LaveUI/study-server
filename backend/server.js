@@ -69,7 +69,7 @@ let roomGoals = {};
 app.use(express.static(path.join(__dirname, "../src")));
 
 app.get("/", (req, res) => {
-  res.redirect("/pages/index.html");
+  res.redirect("/pages/dashboard.html");
 });
 
 /* ---------- Get Public Rooms ---------- */
