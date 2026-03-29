@@ -110,11 +110,8 @@ app.post("/rooms", async (req, res) => {
       name,
       type: "private",
       host,
-      hostName, // Tracks the display name of the host
-      inviteCode:
-        type === "private"
-          ? crypto.randomBytes(4).toString("hex")
-          : null,
+      hostName,
+      inviteCode: crypto.randomBytes(4).toString("hex"),
     });
 
     await room.save();
