@@ -157,9 +157,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     } catch (err) {
       console.error("Load rooms error:", err);
-      alert("Session expired. Please login again.");
-      sessionStorage.clear();
-      window.location.href = "login.html";
+      roomsList.innerHTML = `<p style="color:var(--danger)">Warning: Could not connect to the database. Trying again...</p>`;
     }
   }
 
