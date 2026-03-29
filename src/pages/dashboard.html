@@ -8,38 +8,30 @@
   <link rel="stylesheet" href="../css/style.css">
 </head>
 
-<!-- ================= CREATE ROOM MODAL ================= -->
+<body class="dashboard-page bg-gradient-modern">
 
-<div id="roomModalOverlay" class="modal-overlay"></div>
+  <!-- ================= CREATE ROOM MODAL ================= -->
 
-<div id="roomModal" class="modal-card">
+  <div id="roomModalOverlay" class="modal-overlay"></div>
 
-  <h3>Create New Room</h3>
+  <div id="roomModal" class="modal-card">
 
-  <label>Room Name</label>
-  <input id="roomNameInput" placeholder="Enter room name..." />
+    <h3>Create New Room</h3>
 
-  <label>Room Type</label>
-  <div class="room-type-toggle">
-    <button id="publicBtn" class="toggle active">Public</button>
-    <button id="privateBtn" class="toggle">Private</button>
+    <label>Room Name</label>
+    <input id="roomNameInput" placeholder="Enter room name..." />
+
+    <div style="margin-top: 15px; display: flex; align-items: center; gap: 8px;">
+      <input type="checkbox" id="noMediaCheckbox" style="margin: 0; width: auto;" />
+      <label for="noMediaCheckbox" style="margin: 0; font-size: 0.9rem; cursor: pointer; color: var(--muted);">Join without Camera & Mic</label>
+    </div>
+
+    <div class="modal-actions">
+      <button onclick="closeRoomModal()">Cancel</button>
+      <button class="primary-btn" onclick="submitRoom()">Create</button>
+    </div>
+
   </div>
-
-  <div style="margin-top: 15px; display: flex; align-items: center; gap: 8px;">
-    <input type="checkbox" id="noMediaCheckbox" style="margin: 0; width: auto;" />
-    <label for="noMediaCheckbox" style="margin: 0; font-size: 0.9rem; cursor: pointer; color: var(--muted);">Join
-      without Camera & Mic</label>
-  </div>
-
-  <div class="modal-actions">
-    <button onclick="closeRoomModal()">Cancel</button>
-    <button class="primary-btn" onclick="submitRoom()">Create</button>
-  </div>
-
-</div>
-
-
-<body class="dashboard-page">
 
   <!-- ================= HEADER ================= -->
   <header class="dashboard-header-modern">
@@ -48,28 +40,23 @@
       <h3>📚 Study Server</h3>
     </div>
 
-    <div class="header-right" style="display: flex; align-items: center; gap: 15px;">
-
-      <div class="header-right" style="display: flex; align-items: center; gap: 15px;">
-
-        <div class="user-chip" id="profileTrigger">
-          <img id="header-avatar" class="chip-avatar">
-          <div class="chip-info">
-            <span id="user-name"></span>
-            <small class="muted">Online</small>
-          </div>
+    <div class="header-actions">
+      <div class="user-chip" id="profileTrigger">
+        <img id="header-avatar" class="chip-avatar">
+        <div class="chip-info">
+          <span id="user-name"></span>
+          <small class="muted">Online</small>
         </div>
-
-        <button id="logoutBtn" class="danger-btn">
-          Logout
-        </button>
-
-        <button onclick="toggleTheme()" class="icon-btn">
-          🌗
-        </button>
-
       </div>
 
+      <button id="logoutBtn" class="danger-btn">
+        Logout
+      </button>
+
+      <button onclick="toggleTheme()" class="icon-btn">
+        🌗
+      </button>
+    </div>
 
   </header>
 

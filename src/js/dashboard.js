@@ -1,6 +1,6 @@
 document.addEventListener("DOMContentLoaded", () => {
 
-  const API = "http://localhost:5000";
+  const API = window.location.port === "5500" ? "http://localhost:5000" : window.location.origin;
 
   const token = sessionStorage.getItem("token");
   const userData = sessionStorage.getItem("user");
@@ -111,7 +111,9 @@ document.addEventListener("DOMContentLoaded", () => {
       const res = await fetch(`${API}/rooms`, {
         headers: {
           Authorization: "Bearer " + token,
+          "Cache-Control": "no-cache"
         },
+        cache: 'no-store'
       });
 
       if (!res.ok) throw new Error("Unauthorized");
@@ -125,9 +127,10 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      rooms.forEach(room => {
+      rooms.forEach((room, index) => {
         const div = document.createElement("div");
         div.className = "room-item glass";
+        div.style.animationDelay = `${index * 0.08}s`;
         div.innerHTML = `
           <div style="display: flex; justify-content: space-between; align-items: center;">
             <div>
@@ -166,10 +169,12 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       if (!user.name) return;
 
-      const res = await fetch(`${API}/rooms/my-rooms/${encodeURIComponent(user.name)}`, {
+      const res = await fetch(`${API}/rooms/my-rooms/${encodeURIComponent(user.email)}`, {
         headers: {
           Authorization: "Bearer " + token,
+          "Cache-Control": "no-cache"
         },
+        cache: 'no-store'
       });
 
       if (!res.ok) return;
@@ -186,9 +191,10 @@ document.addEventListener("DOMContentLoaded", () => {
       if (myRoomsSection) myRoomsSection.style.display = "block";
       if (myRoomsList) myRoomsList.innerHTML = "";
 
-      rooms.forEach(room => {
+      rooms.forEach((room, index) => {
         const div = document.createElement("div");
         div.className = "room-item glass";
+        div.style.animationDelay = `${index * 0.08}s`;
 
         div.innerHTML = `
           <div style="display: flex; justify-content: space-between; align-items: flex-start;">
@@ -252,11 +258,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const modal = document.getElementById("roomModal");
   const overlay = document.getElementById("roomModalOverlay");
 
-  const publicBtn = document.getElementById("publicBtn");
-  const privateBtn = document.getElementById("privateBtn");
-
-  let selectedType = "public";
-
   createBtn.addEventListener("click", () => {
     modal.classList.add("active");
     overlay.classList.add("active");
@@ -268,18 +269,6 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   overlay.addEventListener("click", closeRoomModal);
-
-  publicBtn.addEventListener("click", () => {
-    selectedType = "public";
-    publicBtn.classList.add("active");
-    privateBtn.classList.remove("active");
-  });
-
-  privateBtn.addEventListener("click", () => {
-    selectedType = "private";
-    privateBtn.classList.add("active");
-    publicBtn.classList.remove("active");
-  });
 
   window.submitRoom = async function () {
 
@@ -296,8 +285,9 @@ document.addEventListener("DOMContentLoaded", () => {
         },
         body: JSON.stringify({
           name,
-          type: selectedType,
-          host: user.name
+          type: "private",
+          host: user.email,
+          hostName: user.name
         }),
       });
 
@@ -325,5 +315,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
   loadRooms();
   loadMyRooms();
+
+  /* ================= HANDLE BROWSER BACK BUTTON ================= */
+  window.addEventListener("pageshow", (event) => {
+    if (event.persisted) {
+      loadRooms();
+      loadMyRooms();
+    }
+  });
 
 });

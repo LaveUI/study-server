@@ -1,6 +1,7 @@
 async function handleGoogleLogin(response) {
   try {
-    const res = await fetch("http://localhost:5000/auth/google", {
+    const API = window.location.port === "5500" ? "http://localhost:5000" : window.location.origin;
+    const res = await fetch(API + "/auth/google", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

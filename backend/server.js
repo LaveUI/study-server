@@ -8,6 +8,12 @@ import mongoose from "mongoose";
 import { OAuth2Client } from "google-auth-library";
 import dotenv from "dotenv";
 
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 import { connectDB } from "./db.js";
 import Room from "./models/Room.js";
 import Message from "./models/Message.js";
@@ -20,9 +26,25 @@ connectDB();
 const app = express();
 const server = http.createServer(app);
 
+mongoose.connection.once("open", async () => {
+  try {
+    const publicRoomCount = await Room.countDocuments({ type: "public" });
+    if (publicRoomCount === 0) {
+      await Room.insertMany([
+        { name: "Lofi Study Lounge", type: "public", host: "System", hostName: "System" },
+        { name: "Silent Library", type: "public", host: "System", hostName: "System" },
+        { name: "Pomodoro Focus", type: "public", host: "System", hostName: "System" }
+      ]);
+      console.log("🌱 Seeded default public rooms");
+    }
+  } catch (err) {
+    console.error("Failed to seed rooms:", err);
+  }
+});
+
 const io = new Server(server, {
   cors: {
-    origin: "http://127.0.0.1:5500",
+    origin: "*", // Universal entry required for Render/Vercel/Atlas interactions
     methods: ["GET", "POST"],
   },
 });
@@ -32,7 +54,7 @@ const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 app.use(cors());
 app.use(express.json());
 
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 
 /* ---------------- In-memory Stores ---------------- */
 
@@ -42,10 +64,12 @@ let pomodoroTimers = {};
 let roomGoals = {};
 
 
-/* ---------------- REST API ---------------- */
+/* ---------------- REST API & STATIC SERVING ---------------- */
+
+app.use(express.static(path.join(__dirname, "../src")));
 
 app.get("/", (req, res) => {
-  res.send("Study Server backend running 🚀");
+  res.redirect("/pages/index.html");
 });
 
 /* ---------- Get Public Rooms ---------- */
@@ -76,15 +100,15 @@ app.get("/rooms/my-rooms/:username", async (req, res) => {
 
 app.post("/rooms", async (req, res) => {
   try {
-    const { name, type, host, hostName } = req.body;
+    const { name, host, hostName } = req.body;
 
-    if (!name || !type || !host) {
-      return res.status(400).json({ error: "name, type and host required" });
+    if (!name || !host) {
+      return res.status(400).json({ error: "name and host required" });
     }
 
     const room = new Room({
       name,
-      type,
+      type: "private",
       host,
       hostName, // Tracks the display name of the host
       inviteCode:

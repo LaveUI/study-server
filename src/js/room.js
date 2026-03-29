@@ -26,7 +26,7 @@
 
   const userData = JSON.parse(userObj);
   const user = userData.name;
-  const API = "http://localhost:5000";
+  const API = window.location.port === "5500" ? "http://localhost:5000" : window.location.origin;
 
   /* ================= SOCKET ================= */
 
@@ -63,8 +63,8 @@
       }
       const room = await res.json();
       const titleEl = document.getElementById("prejoin-room-title");
-      if (titleEl && room.host) {
-        titleEl.textContent = `Join ${room.host}'s Room`;
+      if (titleEl && room.hostName) {
+        titleEl.textContent = `Join ${room.hostName}'s Room`;
       }
       return room._id;
     }
