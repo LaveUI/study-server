@@ -81,6 +81,7 @@
   let peers = {};
   let cameraTrack = null;
   let activeAvatars = {}; // Stores { targetId: { picture: string, isVideoOff: boolean } }
+  let isMicHardMuted = false; // True when mic hardware has been fully released
 
   const rtcConfig = {
     iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
@@ -411,24 +412,67 @@
 
   /* ================= MEDIA CONTROLS ================= */
 
-  window.toggleMic = function () {
+  window.toggleMic = async function () {
     if (!localStream) return;
-    const audioTrack = localStream.getAudioTracks()[0];
-    if (audioTrack) {
-      audioTrack.enabled = !audioTrack.enabled;
-      
-      const isMuted = !audioTrack.enabled;
-      
-      const btn = document.querySelector(`button[onclick="toggleMic()"]`);
+
+    const btn = document.querySelector(`button[onclick="toggleMic()"]`);
+    const myIcon = document.getElementById("mute-icon-self");
+
+    if (!isMicHardMuted) {
+      // === MUTE: Hard-stop the track to fully release hardware ===
+      const audioTrack = localStream.getAudioTracks()[0];
+      if (audioTrack) {
+        audioTrack.stop(); // Releases the OS-level mic lock
+        localStream.removeTrack(audioTrack);
+      }
+      isMicHardMuted = true;
+
       if (btn) {
-        btn.innerHTML = isMuted ? "<span style='color:#ef4444'>🔇</span>" : "🎤";
+        btn.innerHTML = "<span style='color:#ef4444'>🔇</span>";
         btn.style.opacity = "1";
       }
-      
-      const myIcon = document.getElementById("mute-icon-self");
-      if (myIcon) myIcon.style.display = isMuted ? "block" : "none";
+      if (myIcon) myIcon.style.display = "block";
+      socket.emit("client-state-change", { roomId, isMuted: true });
 
-      socket.emit("client-state-change", { roomId, isMuted });
+    } else {
+      // === UNMUTE: Re-acquire mic and hot-swap into all peer connections ===
+      try {
+        if (btn) { btn.innerHTML = "⏳"; btn.style.opacity = "0.5"; }
+
+        const newStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const newAudioTrack = newStream.getAudioTracks()[0];
+
+        // Add track to local stream
+        localStream.addTrack(newAudioTrack);
+        isMicHardMuted = false;
+
+        // Hot-swap track in every active peer connection
+        for (const peerId in peers) {
+          const peer = peers[peerId];
+          const sender = peer.getSenders().find(s => s.track && s.track.kind === "audio");
+          if (sender) {
+            await sender.replaceTrack(newAudioTrack);
+          } else {
+            // If no audio sender exists yet, add it
+            peer.addTrack(newAudioTrack, localStream);
+          }
+        }
+
+        // Restart the glow analyzer on the new track
+        monitorAudioLevel(localStream, "self");
+
+        if (btn) {
+          btn.innerHTML = "🎤";
+          btn.style.opacity = "1";
+        }
+        if (myIcon) myIcon.style.display = "none";
+        socket.emit("client-state-change", { roomId, isMuted: false });
+
+      } catch (err) {
+        console.error("Failed to re-acquire microphone:", err);
+        if (btn) { btn.innerHTML = "<span style='color:#ef4444'>🔇</span>"; btn.style.opacity = "1"; }
+        alert("Could not access your microphone. Please check permissions.");
+      }
     }
   };
 
