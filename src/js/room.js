@@ -166,9 +166,15 @@
         myVideo.style.display = isVideoOff ? "none" : "block";
         myAvatar.style.display = isVideoOff ? "block" : "none";
 
+        const nameLabel = document.createElement("div");
+        nameLabel.className = "name-label";
+        nameLabel.id = "name-label-self";
+        nameLabel.textContent = userData.name;
+
         wrapper.appendChild(myAvatar);
         wrapper.appendChild(myVideo);
         wrapper.appendChild(muteIcon);
+        wrapper.appendChild(nameLabel);
         videoGrid?.appendChild(wrapper);
         updateVideoLayout();
       } else {
@@ -240,12 +246,16 @@
 
   /* ================= WEBRTC SIGNALING ================= */
 
-  function createPeer(targetId, picture, isVideoOff) {
+  function createPeer(targetId, picture, isVideoOff, name) {
     if (peers[targetId]) return peers[targetId];
 
     // Register active state
-    if (picture) {
-       activeAvatars[targetId] = { picture, isVideoOff: isVideoOff || false };
+    if (picture || name) {
+       activeAvatars[targetId] = { 
+         picture: picture || (activeAvatars[targetId] ? activeAvatars[targetId].picture : null),
+         name: name || (activeAvatars[targetId] ? activeAvatars[targetId].name : "Unknown"),
+         isVideoOff: isVideoOff !== undefined ? isVideoOff : (activeAvatars[targetId] ? activeAvatars[targetId].isVideoOff : false)
+       };
     }
 
     const peer = new RTCPeerConnection(rtcConfig);
@@ -300,9 +310,15 @@
         muteIcon.innerHTML = "🔇";
         muteIcon.style.display = "none"; // dynamically toggled by network
 
+        const nameLabel = document.createElement("div");
+        nameLabel.className = "name-label";
+        nameLabel.id = `name-label-${targetId}`;
+        nameLabel.textContent = (activeAvatars[targetId] && activeAvatars[targetId].name) || "User";
+
         wrapper.appendChild(remoteAvatar);
         wrapper.appendChild(videoEl);
         wrapper.appendChild(muteIcon);
+        wrapper.appendChild(nameLabel);
         videoGrid?.appendChild(wrapper);
         updateVideoLayout();
       }
@@ -329,31 +345,31 @@
     return peer;
   }
 
-  socket.on("video-ready", async ({ sender, picture, isVideoOff }) => {
-    const peer = createPeer(sender, picture, isVideoOff);
+  socket.on("video-ready", async ({ sender, picture, isVideoOff, name }) => {
+    const peer = createPeer(sender, picture, isVideoOff, name);
     try {
       const offer = await peer.createOffer();
       await peer.setLocalDescription(offer);
       
       const videoTrack = localStream ? localStream.getVideoTracks()[0] : null;
-      socket.emit("video-offer", { target: sender, offer, isVideoOff: !videoTrack || !videoTrack.enabled, picture: userData.picture });
+      socket.emit("video-offer", { target: sender, offer, isVideoOff: !videoTrack || !videoTrack.enabled, picture: userData.picture, name: userData.name });
     } catch (err) {
       console.error("Error creating offer:", err);
     }
   });
 
-  socket.on("video-offer", async ({ sender, offer, picture, isVideoOff }) => {
-    const peer = createPeer(sender, picture, isVideoOff);
+  socket.on("video-offer", async ({ sender, offer, picture, isVideoOff, name }) => {
+    const peer = createPeer(sender, picture, isVideoOff, name);
     await peer.setRemoteDescription(new RTCSessionDescription(offer));
     const answer = await peer.createAnswer();
     await peer.setLocalDescription(answer);
     
     const videoTrack = localStream ? localStream.getVideoTracks()[0] : null;
-    socket.emit("video-answer", { target: sender, answer, isVideoOff: !videoTrack || !videoTrack.enabled, picture: userData.picture });
+    socket.emit("video-answer", { target: sender, answer, isVideoOff: !videoTrack || !videoTrack.enabled, picture: userData.picture, name: userData.name });
   });
 
-  socket.on("video-answer", async ({ sender, answer, picture, isVideoOff }) => {
-    const peer = createPeer(sender, picture, isVideoOff);
+  socket.on("video-answer", async ({ sender, answer, picture, isVideoOff, name }) => {
+    const peer = createPeer(sender, picture, isVideoOff, name);
     try {
       await peer.setRemoteDescription(new RTCSessionDescription(answer));
     } catch (err) {

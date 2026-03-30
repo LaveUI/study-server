@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import http from "http";
+import https from "https";
 import { Server } from "socket.io";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
@@ -71,6 +72,21 @@ app.use(express.static(path.join(__dirname, "../src")));
 app.get("/", (req, res) => {
   res.redirect("/pages/dashboard.html");
 });
+
+/* ---------- Render Keep-Alive (Free Tier Fix) ---------- */
+
+app.get("/ping", (req, res) => res.send("pong"));
+
+const RENDER_URL = process.env.RENDER_EXTERNAL_URL;
+if (RENDER_URL) {
+  setInterval(() => {
+    https.get(`${RENDER_URL}/ping`, (res) => {
+      console.log(`🚀 Self-ping successful: Status ${res.statusCode} (Server is awake)`);
+    }).on('error', (err) => {
+      console.error("❌ Self-ping failed:", err.message);
+    });
+  }, 14 * 60 * 1000); // Ping every 14 minutes
+}
 
 /* ---------- Get Public Rooms ---------- */
 
@@ -289,6 +305,7 @@ io.on("connection", (socket) => {
   socket.on("video-ready", ({ roomId, isVideoOff }) => {
     socket.to(roomId).emit("video-ready", {
       sender: socket.id,
+      name: socket.user?.name,
       picture: socket.user?.picture,
       isVideoOff
     });
@@ -306,6 +323,7 @@ io.on("connection", (socket) => {
     io.to(target).emit("video-offer", {
       offer,
       sender: socket.id,
+      name: socket.user?.name,
       picture: socket.user?.picture,
       isVideoOff
     });
@@ -315,6 +333,7 @@ io.on("connection", (socket) => {
     io.to(target).emit("video-answer", {
       answer,
       sender: socket.id,
+      name: socket.user?.name,
       picture: socket.user?.picture,
       isVideoOff
     });
