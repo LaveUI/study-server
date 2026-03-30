@@ -80,6 +80,7 @@
   let localStream = null;
   let peers = {};
   let cameraTrack = null;
+  let activeAvatars = {}; // Stores { targetId: { picture: string, isVideoOff: boolean } }
 
   const rtcConfig = {
     iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
@@ -131,10 +132,17 @@
       // If we have video tracks, set them up. Otherwise, skip the video element
       if (localStream.getVideoTracks().length > 0) {
         cameraTrack = localStream.getVideoTracks()[0];
+        
+        // USER REQUEST: Turn off Camera by default upon joining
+        cameraTrack.enabled = false;
 
         // Remove any existing self-video just in case
         const existingVideo = document.getElementById("self-video");
         if (existingVideo) existingVideo.remove();
+
+        const wrapper = document.createElement("div");
+        wrapper.className = "video-wrapper";
+        wrapper.id = "wrapper-self";
 
         const myVideo = document.createElement("video");
         myVideo.id = "self-video";
@@ -143,35 +151,102 @@
         myVideo.autoplay = true;
         myVideo.playsInline = true;
         myVideo.style.transform = "scaleX(-1)";
-        myVideo.style.objectFit = "cover";
 
-        videoGrid?.appendChild(myVideo);
+        const muteIcon = document.createElement("div");
+        muteIcon.className = "mute-icon-overlay";
+        muteIcon.id = "mute-icon-self";
+        muteIcon.innerHTML = "🔇";
+        muteIcon.style.display = "none"; // hidden by default since we join hot
+
+        const myAvatar = document.createElement("img");
+        myAvatar.className = "avatar-placeholder";
+        myAvatar.id = "avatar-self";
+        myAvatar.src = userData.picture || `https://api.dicebear.com/7.x/identicon/svg?seed=${userData.email || userData.name}`;
+        const isVideoOff = !localStream.getVideoTracks()[0] || !localStream.getVideoTracks()[0].enabled;
+        myVideo.style.display = isVideoOff ? "none" : "block";
+        myAvatar.style.display = isVideoOff ? "block" : "none";
+
+        wrapper.appendChild(myAvatar);
+        wrapper.appendChild(myVideo);
+        wrapper.appendChild(muteIcon);
+        videoGrid?.appendChild(wrapper);
         updateVideoLayout();
       } else {
         // Make sure the layout handles the lack of our own video
         updateVideoLayout();
       }
 
-      // Default mic to OFF
-      const audioTracks = localStream.getAudioTracks();
-      if (audioTracks.length > 0) {
-        audioTracks[0].enabled = false;
-        const micBtn = document.querySelector(`button[onclick="toggleMic()"]`);
-        if (micBtn) micBtn.style.opacity = "0.5";
-      }
+      // Sync local button state
+      const micBtn = document.querySelector(`button[onclick="toggleMic()"]`);
+      if (micBtn) micBtn.style.opacity = "1";
+      
+      const camBtn = document.querySelector(`button[onclick="toggleCamera()"]`);
+      if (camBtn) camBtn.style.opacity = "0.5";
+
+      monitorAudioLevel(localStream, "self");
 
       // Signal readiness to peers regardless of what devices we had
-      socket.emit("video-ready", { roomId });
+      const videoTrack = localStream.getVideoTracks()[0];
+      const isVideoOff = !videoTrack || !videoTrack.enabled;
+      socket.emit("video-ready", { roomId, isVideoOff });
 
     } catch (err) {
       console.error("Critical Media error:", err);
     }
   }
 
+  /* ================= AUDIO ANALYZER ================= */
+  let globalAudioContext = null;
+
+  function monitorAudioLevel(stream, id) {
+    if (stream.getAudioTracks().length === 0) return;
+    
+    try {
+      if (!globalAudioContext) {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        globalAudioContext = new AudioContext();
+      }
+      
+      const source = globalAudioContext.createMediaStreamSource(stream);
+      const analyser = globalAudioContext.createAnalyser();
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.5;
+      source.connect(analyser);
+      
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      
+      function checkLevel() {
+        const videoWrap = document.getElementById(`wrapper-${id}`);
+        if (!videoWrap) return; // Stop memory loop if user disconnects
+        
+        analyser.getByteFrequencyData(dataArray);
+        let sum = 0;
+        for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+        const average = sum / dataArray.length;
+        
+        const isMicEnabled = stream.getAudioTracks()[0].enabled;
+        if (average > 10 && isMicEnabled) {
+           videoWrap.style.boxShadow = "0 0 25px 5px #a78bfa";
+        } else {
+           videoWrap.style.boxShadow = "";
+        }
+        requestAnimationFrame(checkLevel);
+      }
+      checkLevel();
+    } catch(err) {
+      console.warn("Audio analyzer skipped:", err);
+    }
+  }
+
   /* ================= WEBRTC SIGNALING ================= */
 
-  function createPeer(targetId) {
+  function createPeer(targetId, picture, isVideoOff) {
     if (peers[targetId]) return peers[targetId];
+
+    // Register active state
+    if (picture) {
+       activeAvatars[targetId] = { picture, isVideoOff: isVideoOff || false };
+    }
 
     const peer = new RTCPeerConnection(rtcConfig);
     peers[targetId] = peer;
@@ -197,26 +272,55 @@
 
     peer.ontrack = (event) => {
       const stream = event.streams[0];
+      let wrapper = document.getElementById(`wrapper-${targetId}`);
       let videoEl = document.getElementById(`video-${targetId}`);
 
-      if (!videoEl) {
+      if (!wrapper) {
+        wrapper = document.createElement("div");
+        wrapper.className = "video-wrapper";
+        wrapper.id = `wrapper-${targetId}`;
+
         videoEl = document.createElement("video");
         videoEl.id = `video-${targetId}`;
         videoEl.autoplay = true;
         videoEl.playsInline = true;
-        videoEl.style.objectFit = "cover";
+        
+        const remoteAvatar = document.createElement("img");
+        remoteAvatar.className = "avatar-placeholder";
+        remoteAvatar.id = `avatar-${targetId}`;
+        remoteAvatar.src = (activeAvatars[targetId] && activeAvatars[targetId].picture) || `https://api.dicebear.com/7.x/identicon/svg?seed=${targetId}`;
+        
+        const isOff = activeAvatars[targetId] ? activeAvatars[targetId].isVideoOff : false;
+        remoteAvatar.style.display = isOff ? "block" : "none";
+        videoEl.style.display = isOff ? "none" : "block";
+        
+        const muteIcon = document.createElement("div");
+        muteIcon.className = "mute-icon-overlay";
+        muteIcon.id = `mute-icon-${targetId}`;
+        muteIcon.innerHTML = "🔇";
+        muteIcon.style.display = "none"; // dynamically toggled by network
 
-        videoGrid?.appendChild(videoEl);
+        wrapper.appendChild(remoteAvatar);
+        wrapper.appendChild(videoEl);
+        wrapper.appendChild(muteIcon);
+        videoGrid?.appendChild(wrapper);
         updateVideoLayout();
       }
 
       videoEl.srcObject = stream;
+      videoEl.onloadedmetadata = () => {
+        videoEl.play().catch(e => console.error("Autoplay thwarted:", e));
+      };
+      
+      if (stream.getAudioTracks().length > 0) {
+          monitorAudioLevel(stream, targetId);
+      }
     };
 
     peer.onconnectionstatechange = () => {
       if (peer.connectionState === "disconnected" || peer.connectionState === "failed" || peer.connectionState === "closed") {
-        const videoEl = document.getElementById(`video-${targetId}`);
-        if (videoEl) videoEl.remove();
+        const wrapper = document.getElementById(`wrapper-${targetId}`);
+        if (wrapper) wrapper.remove();
         delete peers[targetId];
         updateVideoLayout();
       }
@@ -225,37 +329,35 @@
     return peer;
   }
 
-  socket.on("video-ready", async ({ sender }) => {
-    const peer = createPeer(sender);
+  socket.on("video-ready", async ({ sender, picture, isVideoOff }) => {
+    const peer = createPeer(sender, picture, isVideoOff);
     try {
       const offer = await peer.createOffer();
       await peer.setLocalDescription(offer);
-      socket.emit("video-offer", { target: sender, offer });
+      
+      const videoTrack = localStream ? localStream.getVideoTracks()[0] : null;
+      socket.emit("video-offer", { target: sender, offer, isVideoOff: !videoTrack || !videoTrack.enabled, picture: userData.picture });
     } catch (err) {
       console.error("Error creating offer:", err);
     }
   });
 
-  socket.on("video-offer", async ({ sender, offer }) => {
-    const peer = createPeer(sender);
-    try {
-      await peer.setRemoteDescription(new RTCSessionDescription(offer));
-      const answer = await peer.createAnswer();
-      await peer.setLocalDescription(answer);
-      socket.emit("video-answer", { target: sender, answer });
-    } catch (err) {
-      console.error("Error creating answer:", err);
-    }
+  socket.on("video-offer", async ({ sender, offer, picture, isVideoOff }) => {
+    const peer = createPeer(sender, picture, isVideoOff);
+    await peer.setRemoteDescription(new RTCSessionDescription(offer));
+    const answer = await peer.createAnswer();
+    await peer.setLocalDescription(answer);
+    
+    const videoTrack = localStream ? localStream.getVideoTracks()[0] : null;
+    socket.emit("video-answer", { target: sender, answer, isVideoOff: !videoTrack || !videoTrack.enabled, picture: userData.picture });
   });
 
-  socket.on("video-answer", async ({ sender, answer }) => {
-    const peer = peers[sender];
-    if (peer) {
-      try {
-        await peer.setRemoteDescription(new RTCSessionDescription(answer));
-      } catch (err) {
-        console.error("Error setting answer:", err);
-      }
+  socket.on("video-answer", async ({ sender, answer, picture, isVideoOff }) => {
+    const peer = createPeer(sender, picture, isVideoOff);
+    try {
+      await peer.setRemoteDescription(new RTCSessionDescription(answer));
+    } catch (err) {
+      console.error("Error setting answer:", err);
     }
   });
 
@@ -267,9 +369,23 @@
     }
   });
 
+  socket.on("client-state-change", ({ userId, isMuted, isVideoOff }) => {
+    const muteIcon = document.getElementById(`mute-icon-${userId}`);
+    if (muteIcon && isMuted !== undefined) {
+      muteIcon.style.display = isMuted ? "block" : "none";
+    }
+    
+    const videoEl = document.getElementById(`video-${userId}`);
+    const avatarEl = document.getElementById(`avatar-${userId}`);
+    if (videoEl && avatarEl && isVideoOff !== undefined) {
+      videoEl.style.display = isVideoOff ? "none" : "block";
+      avatarEl.style.display = isVideoOff ? "block" : "none";
+    }
+  });
+
   socket.on("user-disconnected", (id) => {
-    const videoEl = document.getElementById(`video-${id}`);
-    if (videoEl) videoEl.remove();
+    const wrapper = document.getElementById(`wrapper-${id}`);
+    if (wrapper) wrapper.remove();
     if (peers[id]) {
       peers[id].close();
       delete peers[id];
@@ -284,8 +400,19 @@
     const audioTrack = localStream.getAudioTracks()[0];
     if (audioTrack) {
       audioTrack.enabled = !audioTrack.enabled;
+      
+      const isMuted = !audioTrack.enabled;
+      
       const btn = document.querySelector(`button[onclick="toggleMic()"]`);
-      if (btn) btn.style.opacity = audioTrack.enabled ? "1" : "0.5";
+      if (btn) {
+        btn.innerHTML = isMuted ? "<span style='color:#ef4444'>🔇</span>" : "🎤";
+        btn.style.opacity = "1";
+      }
+      
+      const myIcon = document.getElementById("mute-icon-self");
+      if (myIcon) myIcon.style.display = isMuted ? "block" : "none";
+
+      socket.emit("client-state-change", { roomId, isMuted });
     }
   };
 
@@ -294,8 +421,20 @@
     const videoTrack = localStream.getVideoTracks()[0];
     if (videoTrack) {
       videoTrack.enabled = !videoTrack.enabled;
-      const btn = document.querySelector(`button[onclick="toggleCamera()"]`);
-      if (btn) btn.style.opacity = videoTrack.enabled ? "1" : "0.5";
+      
+      const isVideoOff = !videoTrack.enabled;
+      
+      const btn = document.getElementById("btn-camera");
+      if (btn) btn.style.opacity = !isVideoOff ? "1" : "0.5";
+      
+      const selfVideo = document.getElementById("self-video");
+      const selfAvatar = document.getElementById("avatar-self");
+      if (selfVideo && selfAvatar) {
+        selfVideo.style.display = isVideoOff ? "none" : "block";
+        selfAvatar.style.display = isVideoOff ? "block" : "none";
+      }
+
+      socket.emit("client-state-change", { roomId, isVideoOff });
     }
   };
 

@@ -133,9 +133,12 @@ document.addEventListener("DOMContentLoaded", () => {
         div.style.animationDelay = `${index * 0.08}s`;
         div.innerHTML = `
           <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div>
-              <strong>🌍 ${room.name}</strong>
-              <p class="muted">Public Room</p>
+            <div style="display:flex; align-items:center; gap: 12px; min-width: 0;">
+              <img src="${room.hostPicture || 'https://api.dicebear.com/7.x/bottts/svg?seed=' + encodeURIComponent(room.name)}" style="width: 44px; height: 44px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.1); background:var(--bg);">
+              <div style="min-width: 0;">
+                <strong style="font-size: 1.1rem; display:block; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${room.name}</strong>
+                <p class="muted" style="margin: 2px 0 0 0; font-size: 0.8rem;">Public Room</p>
+              </div>
             </div>
             <div class="nomedia-wrapper" style="display: flex; align-items: center; gap: 6px;" title="Join without Mic/Cam">
               <input type="checkbox" class="join-nomedia-cb" id="nomedia-pub-${room._id}" style="margin:0; width:auto; cursor:pointer;" />
@@ -196,13 +199,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
         div.innerHTML = `
           <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-            <div>
-              <strong>${room.name}</strong>
-              <p class="muted">🔒 Private Room</p>
-              <p class="muted" style="font-size:0.8rem; margin-top:5px; margin-bottom:0;">Invite Link: <code>?invite=${room.inviteCode}</code></p>
+            <div style="display:flex; align-items:center; gap: 12px;">
+              <img src="${room.hostPicture || 'https://api.dicebear.com/7.x/identicon/svg?seed=' + user.email}" style="width: 44px; height: 44px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.1); background:var(--bg);">
+              <div style="min-width: 0;">
+                <strong style="font-size: 1.1rem; display:block; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${room.name}</strong>
+                <p class="muted" style="margin: 2px 0 0 0; font-size: 0.8rem;">🔒 Private Room</p>
+                <p class="muted" style="margin-top:8px; margin-bottom:0;">
+                  <span class="share-btn" style="color:var(--accent); cursor:pointer; font-size:0.85rem; font-weight:600; display:inline-flex; align-items:center; gap:4px; transition:0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" onclick="copyInvite('${room._id}', '${room.inviteCode}', event)">
+                    <span>🔗</span> Share
+                  </span>
+                </p>
+              </div>
             </div>
             <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 10px;">
-              <button class="icon-btn delete-btn" style="background:transparent; border:none; cursor:pointer; font-size:1.2rem; padding: 0;" title="Cancel Session">🗑️</button>
+              <button class="icon-btn delete-btn" style="background:transparent; border:none; cursor:pointer; font-size:1.5rem; color: rgba(255,255,255,0.3); line-height: 1; transition: 0.2s;" title="Delete Room" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='rgba(255,255,255,0.3)'">&times;</button>
               <div class="nomedia-wrapper" style="display: flex; align-items: center; gap: 6px;" title="Join without Mic/Cam">
                 <input type="checkbox" class="join-nomedia-cb" id="nomedia-priv-${room._id}" style="margin:0; width:auto; cursor:pointer;" />
                 <label for="nomedia-priv-${room._id}" style="margin:0; font-size: 0.75rem; cursor:pointer; color: var(--muted); white-space: nowrap;">No Mic/Cam</label>
@@ -285,7 +295,8 @@ document.addEventListener("DOMContentLoaded", () => {
           name,
           type: "private",
           host: user.email,
-          hostName: user.name
+          hostName: user.name,
+          hostPicture: user.picture
         }),
       });
 
@@ -323,3 +334,24 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
 });
+
+window.copyInvite = function(roomId, inviteCode, event) {
+  if (event) event.stopPropagation();
+  const currentPath = window.location.pathname;
+  const basePath = currentPath.substring(0, currentPath.lastIndexOf('/') + 1);
+  const url = `${window.location.origin}${basePath}room.html?roomId=${roomId}&invite=${inviteCode}&nomedia=false`;
+  
+  navigator.clipboard.writeText(url).then(() => {
+    const btn = event.currentTarget;
+    const oldHtml = btn.innerHTML;
+    btn.innerHTML = "<span>✅</span> Copied!";
+    btn.style.color = "#22c55e";
+    
+    setTimeout(() => {
+      btn.innerHTML = oldHtml;
+      btn.style.color = "var(--accent)";
+    }, 2000);
+  }).catch(err => {
+    console.error("Copy failed", err);
+  });
+};

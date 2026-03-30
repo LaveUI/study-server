@@ -31,9 +31,9 @@ mongoose.connection.once("open", async () => {
     const publicRoomCount = await Room.countDocuments({ type: "public" });
     if (publicRoomCount === 0) {
       await Room.insertMany([
-        { name: "Lofi Study Lounge", type: "public", host: "System", hostName: "System" },
-        { name: "Silent Library", type: "public", host: "System", hostName: "System" },
-        { name: "Pomodoro Focus", type: "public", host: "System", hostName: "System" }
+        { name: "Lofi Study Lounge", type: "public", host: "System", hostName: "System", hostPicture: "https://api.dicebear.com/7.x/bottts/svg?seed=Lofi" },
+        { name: "Silent Library", type: "public", host: "System", hostName: "System", hostPicture: "https://api.dicebear.com/7.x/bottts/svg?seed=Library" },
+        { name: "Pomodoro Focus", type: "public", host: "System", hostName: "System", hostPicture: "https://api.dicebear.com/7.x/bottts/svg?seed=Pomodoro" }
       ]);
       console.log("🌱 Seeded default public rooms");
     }
@@ -100,7 +100,7 @@ app.get("/rooms/my-rooms/:username", async (req, res) => {
 
 app.post("/rooms", async (req, res) => {
   try {
-    const { name, host, hostName } = req.body;
+    const { name, host, hostName, hostPicture } = req.body;
 
     if (!name || !host) {
       return res.status(400).json({ error: "name and host required" });
@@ -111,6 +111,7 @@ app.post("/rooms", async (req, res) => {
       type: "private",
       host,
       hostName,
+      hostPicture,
       inviteCode: crypto.randomBytes(4).toString("hex"),
     });
 
@@ -285,23 +286,37 @@ io.on("connection", (socket) => {
 
   /* ================= VIDEO SIGNALING ================= */
 
-  socket.on("video-ready", ({ roomId }) => {
+  socket.on("video-ready", ({ roomId, isVideoOff }) => {
     socket.to(roomId).emit("video-ready", {
       sender: socket.id,
+      picture: socket.user?.picture,
+      isVideoOff
     });
   });
 
-  socket.on("video-offer", ({ offer, target }) => {
+  socket.on("client-state-change", ({ roomId, isMuted, isVideoOff }) => {
+    socket.to(roomId).emit("client-state-change", {
+      userId: socket.id,
+      isMuted,
+      isVideoOff
+    });
+  });
+
+  socket.on("video-offer", ({ offer, target, isVideoOff }) => {
     io.to(target).emit("video-offer", {
       offer,
       sender: socket.id,
+      picture: socket.user?.picture,
+      isVideoOff
     });
   });
 
-  socket.on("video-answer", ({ answer, target }) => {
+  socket.on("video-answer", ({ answer, target, isVideoOff }) => {
     io.to(target).emit("video-answer", {
       answer,
       sender: socket.id,
+      picture: socket.user?.picture,
+      isVideoOff
     });
   });
 

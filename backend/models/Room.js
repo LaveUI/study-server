@@ -5,6 +5,7 @@ const roomSchema = new mongoose.Schema({
   type: String, // public | private
   host: String, // Tracks the creator of the room (email)
   hostName: String, // Tracks the display name of the host
+  hostPicture: String, // Stores the creator's OAuth Avatar URL
   inviteCode: String,
   users: [String],
   createdAt: {
