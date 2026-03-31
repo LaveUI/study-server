@@ -237,6 +237,16 @@ io.on("connection", (socket) => {
       const room = await Room.findById(roomId);
       if (!room) return;
 
+      // ===== PRIVATE ROOM CAPACITY CAP (max 8 users) =====
+      if (room.type === "private") {
+        const roomSockets = await io.in(roomId).fetchSockets();
+        if (roomSockets.length >= 8) {
+          socket.emit("room-full", { message: "This room is full (max 8 users)." });
+          console.log(`-> JOIN REJECTED: ROOM FULL (${roomSockets.length}/8) | ROOM: ${roomId}`);
+          return;
+        }
+      }
+
       socket.join(roomId);
       socket.roomId = roomId;
 

@@ -580,31 +580,33 @@ input::placeholder {
 .video-grid {
   flex: 1;
   display: grid;
-  gap: 20px;
+  gap: 16px;
+  padding: 16px;
   justify-items: center;
-  align-content: center;
+  align-content: start;
+  overflow-y: auto; /* scroll when tiles overflow instead of shrinking */
   transition: 0.3s ease;
 }
 
 /* Single user */
 .video-grid.single {
-  align-content: start;
+  align-content: center;
   padding-top: 60px;
 }
 
-/* Multiple users */
+/* Multiple users — tiles flow in a 2-column grid, scroll if overflow */
 .video-grid.multiple {
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  align-content: center;
-  padding-top: 0;
+  grid-template-columns: repeat(2, 1fr);
+  align-content: start;
+  padding-top: 16px;
 }
 
 .video-grid .video-wrapper {
   width: 100%;
-  max-width: 480px;
+  min-height: 160px; /* never shrink below this */
   aspect-ratio: 16 / 9;
   border-radius: 16px;
-  background: #111; /* Dark background for the wrapper */
+  background: #111;
   box-shadow: var(--shadow);
   transition: 0.3s ease;
   position: relative;

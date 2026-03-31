@@ -179,7 +179,35 @@
         videoGrid?.appendChild(wrapper);
         updateVideoLayout();
       } else {
-        // Make sure the layout handles the lack of our own video
+        // No-media mode — still show an avatar tile for this user
+        const existingWrapper = document.getElementById("wrapper-self");
+        if (!existingWrapper) {
+          const wrapper = document.createElement("div");
+          wrapper.className = "video-wrapper";
+          wrapper.id = "wrapper-self";
+
+          const myAvatar = document.createElement("img");
+          myAvatar.className = "avatar-placeholder";
+          myAvatar.id = "avatar-self";
+          myAvatar.src = userData.picture || `https://api.dicebear.com/7.x/identicon/svg?seed=${userData.email || userData.name}`;
+          myAvatar.style.display = "block";
+
+          const muteIcon = document.createElement("div");
+          muteIcon.className = "mute-icon-overlay";
+          muteIcon.id = "mute-icon-self";
+          muteIcon.innerHTML = "🔇";
+          muteIcon.style.display = "block"; // spectators are always muted
+
+          const nameLabel = document.createElement("div");
+          nameLabel.className = "name-label";
+          nameLabel.id = "name-label-self";
+          nameLabel.textContent = `${userData.name} (spectator)`;
+
+          wrapper.appendChild(myAvatar);
+          wrapper.appendChild(muteIcon);
+          wrapper.appendChild(nameLabel);
+          videoGrid?.appendChild(wrapper);
+        }
         updateVideoLayout();
       }
 
@@ -280,6 +308,39 @@
         });
       }
     };
+
+    // Eagerly create an avatar tile for this peer.
+    // If they have tracks, ontrack will upgrade it to show the video.
+    // If they are a spectator (no tracks), this tile is all they get.
+    if (!document.getElementById(`wrapper-${targetId}`)) {
+      const eagerWrapper = document.createElement("div");
+      eagerWrapper.className = "video-wrapper";
+      eagerWrapper.id = `wrapper-${targetId}`;
+
+      const eagerAvatar = document.createElement("img");
+      eagerAvatar.className = "avatar-placeholder";
+      eagerAvatar.id = `avatar-${targetId}`;
+      eagerAvatar.src = (activeAvatars[targetId] && activeAvatars[targetId].picture)
+        || `https://api.dicebear.com/7.x/identicon/svg?seed=${targetId}`;
+      eagerAvatar.style.display = "block";
+
+      const eagerMuteIcon = document.createElement("div");
+      eagerMuteIcon.className = "mute-icon-overlay";
+      eagerMuteIcon.id = `mute-icon-${targetId}`;
+      eagerMuteIcon.innerHTML = "🔇";
+      eagerMuteIcon.style.display = "none";
+
+      const eagerNameLabel = document.createElement("div");
+      eagerNameLabel.className = "name-label";
+      eagerNameLabel.id = `name-label-${targetId}`;
+      eagerNameLabel.textContent = (activeAvatars[targetId] && activeAvatars[targetId].name) || "User";
+
+      eagerWrapper.appendChild(eagerAvatar);
+      eagerWrapper.appendChild(eagerMuteIcon);
+      eagerWrapper.appendChild(eagerNameLabel);
+      videoGrid?.appendChild(eagerWrapper);
+      updateVideoLayout();
+    }
 
     peer.ontrack = (event) => {
       const stream = event.streams[0];
@@ -758,6 +819,11 @@
 
   document.getElementById("user-status")?.addEventListener("change", (e) => {
     socket.emit("change-status", { status: e.target.value });
+  });
+
+  socket.on("room-full", ({ message }) => {
+    alert(`🚫 ${message}\nYou will be redirected to the Dashboard.`);
+    window.location.href = "dashboard.html";
   });
 
   socket.on("room-info", (info) => {
