@@ -81,7 +81,7 @@
   let peers = {};
   let cameraTrack = null;
   let activeAvatars = {}; // Stores { targetId: { picture: string, isVideoOff: boolean } }
-  let isMicHardMuted = false; // True when mic hardware has been fully released
+  let isMicHardMuted = true;  // Mic starts hard-muted — user must opt in
 
   const rtcConfig = {
     iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
@@ -122,10 +122,16 @@
           throw new Error("User requested no-media mode via dashboard toggle");
         }
 
-        // 1st attempt: Camera and Mic
+        // 1st attempt: Camera and Mic — but immediately stop audio to release mic hardware
+        // User must opt in via the mic button (isMicHardMuted starts = true)
         localStream = await navigator.mediaDevices.getUserMedia({
           video: true,
           audio: true
+        });
+        // Immediately release mic — it will be re-acquired when user clicks 🎤
+        localStream.getAudioTracks().forEach(t => {
+          t.stop();
+          localStream.removeTrack(t);
         });
       } catch (err) {
         if (noMediaParam === 'true') {
@@ -134,18 +140,18 @@
           console.warn("Camera failed. Trying audio only.", err);
         }
 
-        try {
-          if (noMediaParam === 'true') throw new Error("Skipping audio too");
-
-          // 2nd attempt: Mic only
-          localStream = await navigator.mediaDevices.getUserMedia({
-            video: false,
-            audio: true
-          });
-          alert("No camera detected. Joined room with Audio Only.");
-        } catch (audioErr) {
-          // 3rd attempt: Empty stream (Spectator)
-          localStream = new MediaStream();
+        if (noMediaParam !== 'true') {
+          // Try to verify mic access then immediately release it
+          // The track is stopped so OS lock is released; toggleMic will re-acquire
+          try {
+            const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            tempStream.getAudioTracks().forEach(t => t.stop());
+            localStream = new MediaStream(); // start with empty — mic off by default
+          } catch (audioErr) {
+            localStream = new MediaStream(); // no mic access, still create empty stream
+          }
+        } else {
+          localStream = new MediaStream(); // spectator
         }
       }
 
@@ -176,7 +182,7 @@
         muteIcon.className = "mute-icon-overlay";
         muteIcon.id = "mute-icon-self";
         muteIcon.innerHTML = "🔇";
-        muteIcon.style.display = "none"; // hidden by default since we join hot
+        muteIcon.style.display = "block"; // muted by default
 
         const myAvatar = document.createElement("img");
         myAvatar.className = "avatar-placeholder";
@@ -230,11 +236,14 @@
         updateVideoLayout();
       }
 
-      // Sync local button state
-      const micBtn = document.querySelector(`button[onclick="toggleMic()"]`);
-      if (micBtn) micBtn.style.opacity = "1";
-      
-      const camBtn = document.querySelector(`button[onclick="toggleCamera()"]`);
+      // Sync local button state — both mic and cam are OFF by default
+      const micBtn = document.getElementById("btn-mic");
+      if (micBtn) {
+        micBtn.innerHTML = "<span style='color:#ef4444'>🔇</span>";
+        micBtn.style.opacity = "1";
+      }
+
+      const camBtn = document.getElementById("btn-camera");
       if (camBtn) camBtn.style.opacity = "0.5";
 
       monitorAudioLevel(localStream, "self");
@@ -272,17 +281,27 @@
       function checkLevel() {
         const videoWrap = document.getElementById(`wrapper-${id}`);
         if (!videoWrap) return; // Stop memory loop if user disconnects
-        
+
+        const audioTracks = stream.getAudioTracks();
+        const firstTrack = audioTracks[0];
+
+        // If no tracks or track is stopped/removed, or self is hard-muted
+        if (audioTracks.length === 0 || !firstTrack || (id === "self" && isMicHardMuted)) {
+          videoWrap.style.boxShadow = "";
+          requestAnimationFrame(checkLevel);
+          return;
+        }
+
         analyser.getByteFrequencyData(dataArray);
         let sum = 0;
         for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
         const average = sum / dataArray.length;
-        
-        const isMicEnabled = stream.getAudioTracks()[0].enabled;
+
+        const isMicEnabled = firstTrack.enabled;
         if (average > 10 && isMicEnabled) {
-           videoWrap.style.boxShadow = "0 0 25px 5px #a78bfa";
+          videoWrap.style.boxShadow = "0 0 25px 5px #a78bfa";
         } else {
-           videoWrap.style.boxShadow = "";
+          videoWrap.style.boxShadow = "";
         }
         requestAnimationFrame(checkLevel);
       }
@@ -512,6 +531,9 @@
         btn.style.opacity = "1";
       }
       if (myIcon) myIcon.style.display = "block";
+      const selfWrap = document.getElementById("wrapper-self");
+      if (selfWrap) selfWrap.style.boxShadow = ""; // Clear glow immediately on mute
+      
       socket.emit("client-state-change", { roomId, isMuted: true });
 
     } else {
