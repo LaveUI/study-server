@@ -564,9 +564,11 @@ input::placeholder {
 .stage-area {
   display: flex;
   flex-direction: column;
-  padding: 20px;
-  gap: 15px;
+  padding: 12px;
+  gap: 8px;
   overflow: hidden;
+  height: 100%;
+  box-sizing: border-box;
 }
 
 .stage-header {
@@ -580,35 +582,34 @@ input::placeholder {
 .video-grid {
   flex: 1;
   display: grid;
-  gap: 16px;
+  gap: 10px;
   padding: 16px;
-  justify-items: center;
-  align-content: start;
-  overflow-y: auto; /* scroll when tiles overflow instead of shrinking */
+  align-content: center;
+  justify-content: center;
+  overflow-y: auto;
   transition: 0.3s ease;
+  /* JS will set grid-template-columns dynamically */
 }
 
-/* Single user */
+/* Single user - centered */
 .video-grid.single {
   align-content: center;
-  padding-top: 60px;
+  justify-content: center;
 }
 
-/* Multiple users — tiles flow in a 2-column grid, scroll if overflow */
+/* Multiple users */
 .video-grid.multiple {
-  grid-template-columns: repeat(2, 1fr);
-  align-content: start;
-  padding-top: 16px;
+  align-content: center;
 }
 
+/* Each tile - always 16/9, fills grid column width */
 .video-grid .video-wrapper {
   width: 100%;
-  min-height: 160px; /* never shrink below this */
   aspect-ratio: 16 / 9;
-  border-radius: 16px;
-  background: #111;
-  box-shadow: var(--shadow);
-  transition: 0.3s ease;
+  border-radius: 12px;
+  background: #1a1a2e;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.6);
+  transition: box-shadow 0.3s ease;
   position: relative;
   overflow: hidden;
   display: flex;

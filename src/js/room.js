@@ -89,9 +89,28 @@
 
   function updateVideoLayout() {
     if (!videoGrid) return;
-    const videos = videoGrid.querySelectorAll("video");
+    const wrappers = videoGrid.querySelectorAll(".video-wrapper");
+    const count = wrappers.length;
+
     videoGrid.classList.remove("single", "multiple");
-    videoGrid.classList.add(videos.length <= 1 ? "single" : "multiple");
+
+    if (count === 0) return;
+
+    if (count === 1) {
+      // Single tile: centered, max 70% of width
+      videoGrid.style.gridTemplateColumns = "minmax(0, 70%)";
+      videoGrid.classList.add("single");
+    } else {
+      // Discord-style column count
+      let cols;
+      if (count === 2) cols = 2;
+      else if (count <= 4) cols = 2;
+      else if (count <= 6) cols = 3;
+      else cols = 4;
+
+      videoGrid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+      videoGrid.classList.add("multiple");
+    }
   }
 
   async function initMedia() {
