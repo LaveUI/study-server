@@ -203,6 +203,26 @@ app.post("/auth/google", async (req, res) => {
   }
 });
 
+/* ---------------- Guest Auth (Local Dev) ---------------- */
+
+app.post("/auth/guest", (req, res) => {
+  try {
+    const user = {
+      name: `Guest_${Math.floor(Math.random() * 1000)}`,
+      email: `guest${Date.now()}@example.com`,
+      picture: `https://api.dicebear.com/7.x/bottts/svg?seed=${Date.now()}`,
+    };
+
+    const token = jwt.sign(user, process.env.JWT_SECRET, {
+      expiresIn: "7d",
+    });
+
+    res.json({ token, user });
+  } catch {
+    res.status(500).json({ error: "Failed to create guest session" });
+  }
+});
+
 /* ---------------- Socket Auth ---------------- */
 
 io.use((socket, next) => {
@@ -277,7 +297,7 @@ io.on("connection", (socket) => {
         .limit(50);
 
       socket.emit("chat-history", messages);
-      socket.emit("room-goals-update", roomGoals[roomId] || []);
+      socket.emit("agile-tasks-update", room.tasks || []);
 
       socket.emit("room-info", {
         name: room.name,
@@ -387,36 +407,76 @@ io.on("connection", (socket) => {
     io.to(roomId).emit("force-mute");
   });
 
-  /* ================= ROOM GOALS ================= */
+  /* ================= AGILE TASK BOARD (PERSISTENT) ================= */
 
-  socket.on("add-room-goal", ({ roomId, text }) => {
+  socket.on("add-agile-task", async ({ roomId, text }) => {
     if (!roomId || !text) return;
-    if (!roomGoals[roomId]) roomGoals[roomId] = [];
-
-    roomGoals[roomId].push({
-      id: Date.now().toString(),
-      text: text,
-      checked: false
-    });
-
-    io.to(roomId).emit("room-goals-update", roomGoals[roomId]);
-  });
-
-  socket.on("toggle-room-goal", ({ roomId, goalId }) => {
-    if (!roomId || !goalId || !roomGoals[roomId]) return;
-
-    const goal = roomGoals[roomId].find(g => g.id === goalId);
-    if (goal) {
-      goal.checked = !goal.checked;
-      io.to(roomId).emit("room-goals-update", roomGoals[roomId]);
+    
+    try {
+      const room = await Room.findById(roomId);
+      if (!room) return;
+      
+      room.tasks.push({
+        id: Date.now().toString(),
+        text: text,
+        status: "todo",
+        assigneeName: null,
+        assigneeRole: null,
+        assigneePicture: null
+      });
+      
+      await room.save();
+      io.to(roomId).emit("agile-tasks-update", room.tasks);
+    } catch(err) {
+      console.error("Task add failed:", err);
     }
   });
 
-  socket.on("delete-room-goal", ({ roomId, goalId }) => {
-    if (!roomId || !goalId || !roomGoals[roomId]) return;
+  socket.on("update-task-status", async ({ roomId, taskId, status }) => {
+    if (!roomId || !taskId || !status) return;
 
-    roomGoals[roomId] = roomGoals[roomId].filter(g => g.id !== goalId);
-    io.to(roomId).emit("room-goals-update", roomGoals[roomId]);
+    try {
+      const room = await Room.findById(roomId);
+      if (!room) return;
+      
+      const task = room.tasks.find(t => t.id === taskId);
+      if (task) {
+        task.status = status;
+        await room.save();
+        io.to(roomId).emit("agile-tasks-update", room.tasks);
+      }
+    } catch(err) {}
+  });
+
+  socket.on("claim-task", async ({ roomId, taskId, user, role }) => {
+    if (!roomId || !taskId || !user) return;
+
+    try {
+      const room = await Room.findById(roomId);
+      if (!room) return;
+      
+      const task = room.tasks.find(t => t.id === taskId);
+      if (task) {
+        task.assigneeName = user.name;
+        task.assigneePicture = user.picture;
+        task.assigneeRole = role || "Member";
+        await room.save();
+        io.to(roomId).emit("agile-tasks-update", room.tasks);
+      }
+    } catch(err) {}
+  });
+
+  socket.on("delete-task", async ({ roomId, taskId }) => {
+    if (!roomId || !taskId) return;
+
+    try {
+      const room = await Room.findById(roomId);
+      if (!room) return;
+      
+      room.tasks = room.tasks.filter(t => t.id !== taskId);
+      await room.save();
+      io.to(roomId).emit("agile-tasks-update", room.tasks);
+    } catch(err) {}
   });
 
   /* ================= TIMER ================= */

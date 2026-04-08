@@ -14,6 +14,9 @@
     gtag('config', 'G-SZL123L8ND');
   </script>
   <link rel="icon" type="image/png" href="../assets/logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../css/style.css">
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
@@ -59,7 +62,12 @@
           data-text="sign_in_with"
           data-shape="pill"
           data-logo_alignment="left">
-        </div>
+      </div>
+      
+      <div style="margin-top: 15px; text-align: center;">
+        <button onclick="handleGuestLogin()" class="secondary-btn" style="width: 100%; border: 1px solid var(--border); background: rgba(255,255,255,0.05); color: var(--text); padding: 12px; border-radius: 8px; cursor: pointer; transition: background 0.2s;">
+          Continue as Guest
+        </button>
       </div>
 
       <div class="login-footer">

@@ -15,6 +15,9 @@
     gtag('config', 'G-SZL123L8ND');
   </script>
   <link rel="icon" type="image/png" href="../assets/logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../css/style.css">
 </head>
 
@@ -128,7 +131,7 @@
 
     <!-- GOALS -->
     <div class="goals-mini">
-      <button onclick="toggleGoalsPanel()">🎯</button>
+      <button onclick="toggleAgilePanel()" title="Agile Board">📋</button>
     </div>
 
     <!-- ZEN MODE -->
@@ -142,37 +145,38 @@
      GOALS PANEL (DRAGGABLE)
   ======================================================= -->
 
-  <div id="goals-panel" class="goals-panel">
+  <div id="agile-panel" class="goals-panel">
 
-    <div id="goals-header" class="goals-header">
+    <div id="agile-header" class="goals-header">
       <div class="drag-handle">⋮⋮</div>
-      <h3>Checklist</h3>
-      <button class="close-btn" onclick="toggleGoalsPanel()">✖</button>
+      <h3 style="flex: 1; text-align: left; margin-left: 10px;">Agile Board</h3>
+      
+      <select id="role-selector" onchange="claimRole(this.value)" style="margin-right: 15px; background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 4px;">
+        <option value="none">Set Your Role</option>
+        <option value="Frontend">Frontend</option>
+        <option value="Backend">Backend</option>
+        <option value="Design">Design</option>
+        <option value="DevOps">DevOps</option>
+        <option value="Reviewer">Reviewer</option>
+      </select>
+      
+      <button class="close-btn" onclick="toggleAgilePanel()">✖</button>
     </div>
 
-    <!-- TABS -->
+    <!-- TABS (Status) -->
     <div class="goals-tabs">
-      <button id="tab-personal-btn" class="tab-btn active" onclick="switchGoalTab('personal')">Personal</button>
-      <button id="tab-room-btn" class="tab-btn" onclick="switchGoalTab('room')">Room</button>
+      <button id="tab-todo-btn" class="tab-btn active" onclick="switchAgileTab('todo')">To Do</button>
+      <button id="tab-doing-btn" class="tab-btn" onclick="switchAgileTab('doing')">Doing</button>
+      <button id="tab-done-btn" class="tab-btn" onclick="switchAgileTab('done')">Done</button>
     </div>
 
-    <!-- PERSONAL SECTION -->
-    <div id="tab-personal" class="goals-tab-content active">
-      <div class="input-row">
-        <input id="personalGoalInput" placeholder="Add a personal goal..." onkeydown="handlePersonalGoalKey(event)" />
-        <button onclick="addPersonalGoal()">+</button>
-      </div>
-      <ul id="personal-goals-list" class="goals-list"></ul>
+    <div class="input-row" style="margin-top: 10px;">
+      <input id="agileTaskInput" placeholder="Add a new task..." onkeydown="handleAgileTaskKey(event)" />
+      <button onclick="addAgileTask()">+</button>
     </div>
 
-    <!-- ROOM SECTION -->
-    <div id="tab-room" class="goals-tab-content">
-      <div class="input-row">
-        <input id="roomGoalInput" placeholder="Add a shared room goal..." onkeydown="handleRoomGoalKey(event)" />
-        <button onclick="addRoomGoal()">+</button>
-      </div>
-      <ul id="room-goals-list" class="goals-list"></ul>
-    </div>
+    <!-- AGILE TASK LIST -->
+    <ul id="agile-task-list" class="goals-list" style="margin-top: 10px; gap: 8px; display: flex; flex-direction: column;"></ul>
 
   </div>
 

@@ -299,9 +299,9 @@
 
         const isMicEnabled = firstTrack.enabled;
         if (average > 10 && isMicEnabled) {
-          videoWrap.style.boxShadow = "0 0 25px 5px #a78bfa";
+          videoWrap.classList.add("active-speaker");
         } else {
-          videoWrap.style.boxShadow = "";
+          videoWrap.classList.remove("active-speaker");
         }
         requestAnimationFrame(checkLevel);
       }
@@ -435,6 +435,15 @@
 
     peer.onconnectionstatechange = () => {
       if (peer.connectionState === "disconnected" || peer.connectionState === "failed" || peer.connectionState === "closed") {
+        const wrapper = document.getElementById(`wrapper-${targetId}`);
+        if (wrapper) wrapper.remove();
+        delete peers[targetId];
+        updateVideoLayout();
+      }
+    };
+
+    peer.oniceconnectionstatechange = () => {
+      if (peer.iceConnectionState === "disconnected" || peer.iceConnectionState === "failed" || peer.iceConnectionState === "closed") {
         const wrapper = document.getElementById(`wrapper-${targetId}`);
         if (wrapper) wrapper.remove();
         delete peers[targetId];
@@ -1427,171 +1436,164 @@
     }
   });
 
-  /* ================= GOALS SYSTEM ================= */
+  /* ================= AGILE TASK BOARD (PERSISTENT) ================= */
 
-  const goalsPanel = document.getElementById("goals-panel");
-  const goalsHeader = document.getElementById("goals-header");
+  const agilePanel = document.getElementById("agile-panel");
+  const agileHeader = document.getElementById("agile-header");
 
-  let isDraggingGoals = false;
-  let currentX_goals;
-  let currentY_goals;
-  let initialX_goals;
-  let initialY_goals;
-  let xOffset_goals = 0;
-  let yOffset_goals = 0;
+  let isDraggingAgile = false;
+  let currentX_agile, currentY_agile, initialX_agile, initialY_agile;
+  let xOffset_agile = 0, yOffset_agile = 0;
 
-  if (goalsPanel && goalsHeader) {
-    goalsHeader.addEventListener("mousedown", dragStartGoals);
-    document.addEventListener("mouseup", dragEndGoals);
-    document.addEventListener("mousemove", dragGoals);
+  if (agilePanel && agileHeader) {
+    agileHeader.addEventListener("mousedown", (e) => {
+      // Don't drag if clicking the select dropdown or close button
+      if (e.target.tagName === 'SELECT' || e.target.tagName === 'OPTION' || e.target.classList.contains("close-btn")) return;
+      initialX_agile = e.clientX - xOffset_agile;
+      initialY_agile = e.clientY - yOffset_agile;
+      isDraggingAgile = true;
+    });
+    document.addEventListener("mouseup", () => {
+      initialX_agile = currentX_agile;
+      initialY_agile = currentY_agile;
+      isDraggingAgile = false;
+    });
+    document.addEventListener("mousemove", (e) => {
+      if (isDraggingAgile) {
+         e.preventDefault();
+         currentX_agile = e.clientX - initialX_agile;
+         currentY_agile = e.clientY - initialY_agile;
+         xOffset_agile = currentX_agile;
+         yOffset_agile = currentY_agile;
+         agilePanel.style.transform = `translate(${currentX_agile}px, ${currentY_agile}px)`;
+      }
+    });
   }
 
-  function dragStartGoals(e) {
-    if (e.target === goalsHeader || e.target.parentNode === goalsHeader) {
-      initialX_goals = e.clientX - xOffset_goals;
-      initialY_goals = e.clientY - yOffset_goals;
-      isDraggingGoals = true;
-    }
-  }
-
-  function dragEndGoals() {
-    initialX_goals = currentX_goals;
-    initialY_goals = currentY_goals;
-    isDraggingGoals = false;
-  }
-
-  function dragGoals(e) {
-    if (isDraggingGoals) {
-      e.preventDefault();
-      currentX_goals = e.clientX - initialX_goals;
-      currentY_goals = e.clientY - initialY_goals;
-
-      xOffset_goals = currentX_goals;
-      yOffset_goals = currentY_goals;
-
-      goalsPanel.style.transform = `translate(${currentX_goals}px, ${currentY_goals}px)`;
-    }
-  }
-
-  window.toggleGoalsPanel = function () {
-    const panel = document.getElementById("goals-panel");
-    if (!panel) return;
-    panel.classList.toggle("active");
+  window.toggleAgilePanel = function () {
+    if (agilePanel) agilePanel.classList.toggle("active");
   };
 
-  window.switchGoalTab = function (tab) {
+  let agileTasks = [];
+  let currentAgileTab = "todo";
+  let myRole = localStorage.getItem("roomRole") || "none";
+  
+  // Set initial role dropdown
+  document.addEventListener("DOMContentLoaded", () => {
+      const select = document.getElementById("role-selector");
+      if(select && myRole !== "none") select.value = myRole;
+  });
+
+  window.claimRole = function(role) {
+      myRole = role;
+      localStorage.setItem("roomRole", role);
+  };
+
+  window.switchAgileTab = function (tab) {
+    currentAgileTab = tab;
     document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
-    document.querySelectorAll(".goals-tab-content").forEach(content => content.classList.remove("active"));
-
-    const activeBtn = Array.from(document.querySelectorAll(".tab-btn")).find(btn => btn.textContent.toLowerCase() === tab);
-    activeBtn?.classList.add("active");
-    document.getElementById(`tab-${tab}`)?.classList.add("active");
+    document.getElementById(`tab-${tab}-btn`)?.classList.add("active");
+    renderAgileTasks();
   };
 
-  /* --- Personal Goals --- */
-
-  let personalGoals = JSON.parse(localStorage.getItem("personalTasks")) || [];
-
-  function savePersonalGoals() {
-    localStorage.setItem("personalTasks", JSON.stringify(personalGoals));
-  }
-
-  window.renderPersonalGoals = function () {
-    const list = document.getElementById("personal-goals-list");
+  window.renderAgileTasks = function () {
+    const list = document.getElementById("agile-task-list");
     if (!list) return;
     list.innerHTML = "";
 
-    personalGoals.forEach((goal) => {
+    const filtered = agileTasks.filter(t => t.status === currentAgileTab);
+
+    filtered.forEach((task) => {
       const li = document.createElement("li");
-      li.className = `goal-item ${goal.checked ? "checked" : ""}`;
-      li.innerHTML = `
-      <input type="checkbox" class="goal-checkbox" ${goal.checked ? "checked" : ""} onclick="togglePersonalGoal('${goal.id}')">
-      <span>${goal.text}</span>
-      <button class="goal-delete" onclick="deletePersonalGoal('${goal.id}')">✖</button>
-    `;
+      li.className = "goal-item";
+      li.style.position = "relative";
+      li.style.display = "flex";
+      li.style.flexDirection = "column";
+      li.style.alignItems = "flex-start";
+      
+      const topRow = document.createElement("div");
+      topRow.style.display = "flex";
+      topRow.style.width = "100%";
+      topRow.style.justifyContent = "space-between";
+      topRow.style.alignItems = "center";
+      
+      // Select for moving status
+      const statusSelect = document.createElement("select");
+      statusSelect.innerHTML = `<option value="todo" ${task.status==='todo'?'selected':''}>To Do</option>
+                                <option value="doing" ${task.status==='doing'?'selected':''}>Doing</option>
+                                <option value="done" ${task.status==='done'?'selected':''}>Done</option>`;
+      statusSelect.style.background = "var(--panel)";
+      statusSelect.style.color = "var(--text)";
+      statusSelect.style.border = "1px solid var(--border)";
+      statusSelect.style.borderRadius = "4px";
+      statusSelect.style.padding = "2px";
+      statusSelect.style.fontSize = "0.75rem";
+      statusSelect.onchange = (e) => socket.emit("update-task-status", { roomId, taskId: task.id, status: e.target.value });
+      
+      const deleteBtn = document.createElement("button");
+      deleteBtn.className = "goal-delete";
+      deleteBtn.innerHTML = "✖";
+      deleteBtn.onclick = () => socket.emit("delete-task", { roomId, taskId: task.id });
+      
+      topRow.appendChild(statusSelect);
+      topRow.appendChild(deleteBtn);
+      
+      const textSpan = document.createElement("span");
+      textSpan.textContent = task.text;
+      textSpan.style.margin = "8px 0";
+      textSpan.style.width = "100%";
+      textSpan.style.fontWeight = "500";
+      if (task.status === "done") {
+         textSpan.style.textDecoration = "line-through";
+         textSpan.style.opacity = "0.6";
+      }
+      
+      const bottomRow = document.createElement("div");
+      bottomRow.style.display = "flex";
+      bottomRow.style.width = "100%";
+      bottomRow.style.justifyContent = "space-between";
+      bottomRow.style.alignItems = "center";
+      
+      if (task.assigneeName) {
+        bottomRow.innerHTML = `<div style="display:flex; align-items:center; gap:5px;">
+           <img src="${task.assigneePicture}" style="width:20px;height:20px;border-radius:50%;" />
+           <span style="font-size:0.75rem; background:var(--accent); padding:2px 6px; border-radius:10px;">${task.assigneeRole} - ${task.assigneeName}</span>
+        </div>`;
+      } else {
+        const claimBtn = document.createElement("button");
+        claimBtn.innerHTML = "Claim Task";
+        claimBtn.style.padding = "4px 8px";
+        claimBtn.style.fontSize = "0.75rem";
+        claimBtn.onclick = () => {
+            if (myRole === "none") { alert("Select a role in the Agile Board header first!"); return; }
+            socket.emit("claim-task", { roomId, taskId: task.id, user: userData, role: myRole });
+        };
+        bottomRow.appendChild(claimBtn);
+      }
+      
+      li.appendChild(topRow);
+      li.appendChild(textSpan);
+      li.appendChild(bottomRow);
+      
       list.appendChild(li);
     });
   };
 
-  window.addPersonalGoal = function () {
-    const input = document.getElementById("personalGoalInput");
+  window.addAgileTask = function () {
+    const input = document.getElementById("agileTaskInput");
     const text = input?.value.trim();
     if (!text) return;
-
-    personalGoals.push({
-      id: Date.now().toString(),
-      text,
-      checked: false
-    });
-
-    input.value = "";
-    savePersonalGoals();
-    renderPersonalGoals();
-  };
-
-  window.handlePersonalGoalKey = function (e) {
-    if (e.key === "Enter") addPersonalGoal();
-  };
-
-  window.togglePersonalGoal = function (id) {
-    const goal = personalGoals.find(g => g.id === id);
-    if (goal) {
-      goal.checked = !goal.checked;
-      savePersonalGoals();
-      renderPersonalGoals();
-    }
-  };
-
-  window.deletePersonalGoal = function (id) {
-    personalGoals = personalGoals.filter(g => g.id !== id);
-    savePersonalGoals();
-    renderPersonalGoals();
-  };
-
-  renderPersonalGoals(); // Initial render
-
-  /* --- Room Goals (Socket Synced) --- */
-
-  window.renderRoomGoals = function (goals) {
-    const list = document.getElementById("room-goals-list");
-    if (!list) return;
-    list.innerHTML = "";
-
-    goals.forEach((goal) => {
-      const li = document.createElement("li");
-      li.className = `goal-item ${goal.checked ? "checked" : ""}`;
-      li.innerHTML = `
-      <input type="checkbox" class="goal-checkbox" ${goal.checked ? "checked" : ""} onclick="toggleRoomGoal('${goal.id}')">
-      <span>${goal.text}</span>
-      <button class="goal-delete" onclick="deleteRoomGoal('${goal.id}')">✖</button>
-    `;
-      list.appendChild(li);
-    });
-  };
-
-  window.addRoomGoal = function () {
-    const input = document.getElementById("roomGoalInput");
-    const text = input?.value.trim();
-    if (!text) return;
-
-    socket.emit("add-room-goal", { roomId, text });
+    socket.emit("add-agile-task", { roomId, text });
     input.value = "";
   };
 
-  window.handleRoomGoalKey = function (e) {
-    if (e.key === "Enter") addRoomGoal();
+  window.handleAgileTaskKey = function (e) {
+    if (e.key === "Enter") addAgileTask();
   };
 
-  window.toggleRoomGoal = function (id) {
-    socket.emit("toggle-room-goal", { roomId, goalId: id });
-  };
-
-  window.deleteRoomGoal = function (id) {
-    socket.emit("delete-room-goal", { roomId, goalId: id });
-  };
-
-  socket.on("room-goals-update", (goals) => {
-    renderRoomGoals(goals);
+  socket.on("agile-tasks-update", (tasks) => {
+    agileTasks = tasks;
+    renderAgileTasks();
   });
 
 })();

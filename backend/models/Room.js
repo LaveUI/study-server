@@ -8,6 +8,14 @@ const roomSchema = new mongoose.Schema({
   hostPicture: String, // Stores the creator's OAuth Avatar URL
   inviteCode: String,
   users: [String],
+  tasks: [{
+    id: String,
+    text: String,
+    status: { type: String, default: "todo" }, // todo, doing, done
+    assigneeName: String,
+    assigneeRole: String,
+    assigneePicture: String
+  }],
   createdAt: {
     type: Date,
     default: Date.now,
