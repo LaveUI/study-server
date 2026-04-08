@@ -1596,4 +1596,12 @@
     renderAgileTasks();
   });
 
+  /* ================= LEAVE ROOM ================= */
+  window.leaveRoom = function () {
+    if (confirm("Are you sure you want to leave the room?")) {
+      socket.disconnect();
+      window.location.href = "dashboard.html";
+    }
+  };
+
 })();
