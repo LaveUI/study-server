@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Allow: /pages/login.html
+Disallow: /pages/dashboard.html
+Disallow: /pages/room.html
+
+Sitemap: https://focus-realm.onrender.com/sitemap.xml
