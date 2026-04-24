@@ -158,7 +158,7 @@
       // If we have video tracks, set them up. Otherwise, skip the video element
       if (localStream.getVideoTracks().length > 0) {
         cameraTrack = localStream.getVideoTracks()[0];
-        
+
         // USER REQUEST: Turn off Camera by default upon joining
         cameraTrack.enabled = false;
 
@@ -181,7 +181,7 @@
         const muteIcon = document.createElement("div");
         muteIcon.className = "mute-icon-overlay";
         muteIcon.id = "mute-icon-self";
-        muteIcon.innerHTML = "🔇";
+        muteIcon.innerHTML = '<i class="fa-solid fa-microphone-slash"></i>';
         muteIcon.style.display = "block"; // muted by default
 
         const myAvatar = document.createElement("img");
@@ -220,7 +220,7 @@
           const muteIcon = document.createElement("div");
           muteIcon.className = "mute-icon-overlay";
           muteIcon.id = "mute-icon-self";
-          muteIcon.innerHTML = "🔇";
+          muteIcon.innerHTML = '<i class="fa-solid fa-microphone-slash"></i>';
           muteIcon.style.display = "block"; // spectators are always muted
 
           const nameLabel = document.createElement("div");
@@ -239,7 +239,7 @@
       // Sync local button state — both mic and cam are OFF by default
       const micBtn = document.getElementById("btn-mic");
       if (micBtn) {
-        micBtn.innerHTML = "<span style='color:#ef4444'>🔇</span>";
+        micBtn.innerHTML = "<i class='fa-solid fa-microphone-slash' style='color:#ef4444'></i>";
         micBtn.style.opacity = "1";
       }
 
@@ -263,21 +263,21 @@
 
   function monitorAudioLevel(stream, id) {
     if (stream.getAudioTracks().length === 0) return;
-    
+
     try {
       if (!globalAudioContext) {
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         globalAudioContext = new AudioContext();
       }
-      
+
       const source = globalAudioContext.createMediaStreamSource(stream);
       const analyser = globalAudioContext.createAnalyser();
       analyser.fftSize = 256;
       analyser.smoothingTimeConstant = 0.5;
       source.connect(analyser);
-      
+
       const dataArray = new Uint8Array(analyser.frequencyBinCount);
-      
+
       function checkLevel() {
         const videoWrap = document.getElementById(`wrapper-${id}`);
         if (!videoWrap) return; // Stop memory loop if user disconnects
@@ -306,7 +306,7 @@
         requestAnimationFrame(checkLevel);
       }
       checkLevel();
-    } catch(err) {
+    } catch (err) {
       console.warn("Audio analyzer skipped:", err);
     }
   }
@@ -318,11 +318,11 @@
 
     // Register active state
     if (picture || name) {
-       activeAvatars[targetId] = { 
-         picture: picture || (activeAvatars[targetId] ? activeAvatars[targetId].picture : null),
-         name: name || (activeAvatars[targetId] ? activeAvatars[targetId].name : "Unknown"),
-         isVideoOff: isVideoOff !== undefined ? isVideoOff : (activeAvatars[targetId] ? activeAvatars[targetId].isVideoOff : false)
-       };
+      activeAvatars[targetId] = {
+        picture: picture || (activeAvatars[targetId] ? activeAvatars[targetId].picture : null),
+        name: name || (activeAvatars[targetId] ? activeAvatars[targetId].name : "Unknown"),
+        isVideoOff: isVideoOff !== undefined ? isVideoOff : (activeAvatars[targetId] ? activeAvatars[targetId].isVideoOff : false)
+      };
     }
 
     const peer = new RTCPeerConnection(rtcConfig);
@@ -365,7 +365,7 @@
       const eagerMuteIcon = document.createElement("div");
       eagerMuteIcon.className = "mute-icon-overlay";
       eagerMuteIcon.id = `mute-icon-${targetId}`;
-      eagerMuteIcon.innerHTML = "🔇";
+      eagerMuteIcon.innerHTML = '<i class="fa-solid fa-microphone-slash"></i>';
       eagerMuteIcon.style.display = "none";
 
       const eagerNameLabel = document.createElement("div");
@@ -394,20 +394,20 @@
         videoEl.id = `video-${targetId}`;
         videoEl.autoplay = true;
         videoEl.playsInline = true;
-        
+
         const remoteAvatar = document.createElement("img");
         remoteAvatar.className = "avatar-placeholder";
         remoteAvatar.id = `avatar-${targetId}`;
         remoteAvatar.src = (activeAvatars[targetId] && activeAvatars[targetId].picture) || `https://api.dicebear.com/7.x/identicon/svg?seed=${targetId}`;
-        
+
         const isOff = activeAvatars[targetId] ? activeAvatars[targetId].isVideoOff : false;
         remoteAvatar.style.display = isOff ? "block" : "none";
         videoEl.style.display = isOff ? "none" : "block";
-        
+
         const muteIcon = document.createElement("div");
         muteIcon.className = "mute-icon-overlay";
         muteIcon.id = `mute-icon-${targetId}`;
-        muteIcon.innerHTML = "🔇";
+        muteIcon.innerHTML = '<i class="fa-solid fa-microphone-slash"></i>';
         muteIcon.style.display = "none"; // dynamically toggled by network
 
         const nameLabel = document.createElement("div");
@@ -427,9 +427,9 @@
       videoEl.onloadedmetadata = () => {
         videoEl.play().catch(e => console.error("Autoplay thwarted:", e));
       };
-      
+
       if (stream.getAudioTracks().length > 0) {
-          monitorAudioLevel(stream, targetId);
+        monitorAudioLevel(stream, targetId);
       }
     };
 
@@ -459,7 +459,7 @@
     try {
       const offer = await peer.createOffer();
       await peer.setLocalDescription(offer);
-      
+
       const videoTrack = localStream ? localStream.getVideoTracks()[0] : null;
       socket.emit("video-offer", { target: sender, offer, isVideoOff: !videoTrack || !videoTrack.enabled, picture: userData.picture, name: userData.name });
     } catch (err) {
@@ -472,7 +472,7 @@
     await peer.setRemoteDescription(new RTCSessionDescription(offer));
     const answer = await peer.createAnswer();
     await peer.setLocalDescription(answer);
-    
+
     const videoTrack = localStream ? localStream.getVideoTracks()[0] : null;
     socket.emit("video-answer", { target: sender, answer, isVideoOff: !videoTrack || !videoTrack.enabled, picture: userData.picture, name: userData.name });
   });
@@ -499,7 +499,7 @@
     if (muteIcon && isMuted !== undefined) {
       muteIcon.style.display = isMuted ? "block" : "none";
     }
-    
+
     const videoEl = document.getElementById(`video-${userId}`);
     const avatarEl = document.getElementById(`avatar-${userId}`);
     if (videoEl && avatarEl && isVideoOff !== undefined) {
@@ -536,19 +536,19 @@
       isMicHardMuted = true;
 
       if (btn) {
-        btn.innerHTML = "<span style='color:#ef4444'>🔇</span>";
+        btn.innerHTML = "<i class='fa-solid fa-microphone-slash' style='color:#ef4444'></i>";
         btn.style.opacity = "1";
       }
       if (myIcon) myIcon.style.display = "block";
       const selfWrap = document.getElementById("wrapper-self");
       if (selfWrap) selfWrap.style.boxShadow = ""; // Clear glow immediately on mute
-      
+
       socket.emit("client-state-change", { roomId, isMuted: true });
 
     } else {
       // === UNMUTE: Re-acquire mic and hot-swap into all peer connections ===
       try {
-        if (btn) { btn.innerHTML = "⏳"; btn.style.opacity = "0.5"; }
+        if (btn) { btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; btn.style.opacity = "0.5"; }
 
         const newStream = await navigator.mediaDevices.getUserMedia({ audio: true });
         const newAudioTrack = newStream.getAudioTracks()[0];
@@ -573,7 +573,7 @@
         monitorAudioLevel(localStream, "self");
 
         if (btn) {
-          btn.innerHTML = "🎤";
+          btn.innerHTML = '<i class="fa-solid fa-microphone"></i>';
           btn.style.opacity = "1";
         }
         if (myIcon) myIcon.style.display = "none";
@@ -581,7 +581,7 @@
 
       } catch (err) {
         console.error("Failed to re-acquire microphone:", err);
-        if (btn) { btn.innerHTML = "<span style='color:#ef4444'>🔇</span>"; btn.style.opacity = "1"; }
+        if (btn) { btn.innerHTML = "<i class='fa-solid fa-microphone-slash' style='color:#ef4444'></i>"; btn.style.opacity = "1"; }
         alert("Could not access your microphone. Please check permissions.");
       }
     }
@@ -592,12 +592,12 @@
     const videoTrack = localStream.getVideoTracks()[0];
     if (videoTrack) {
       videoTrack.enabled = !videoTrack.enabled;
-      
+
       const isVideoOff = !videoTrack.enabled;
-      
+
       const btn = document.getElementById("btn-camera");
       if (btn) btn.style.opacity = !isVideoOff ? "1" : "0.5";
-      
+
       const selfVideo = document.getElementById("self-video");
       const selfAvatar = document.getElementById("avatar-self");
       if (selfVideo && selfAvatar) {
@@ -710,7 +710,7 @@
           e.target.setVolume(document.getElementById("ytVolume").value);
           e.target.playVideo();
           isYtPlaying = true;
-          document.getElementById("playPauseIcon").textContent = "⏸";
+          document.getElementById("playPauseIcon").innerHTML = '<i class="fa-solid fa-pause"></i>';
         },
         onError: (e) => {
           console.error("YouTube Error Data:", e.data);
@@ -749,11 +749,11 @@
     if (state === 1) {
       ytPlayer.pauseVideo();
       isYtPlaying = false;
-      if (icon) icon.textContent = "⏵";
+      if (icon) icon.innerHTML = '<i class="fa-solid fa-play"></i>';
     } else {
       ytPlayer.playVideo();
       isYtPlaying = true;
-      if (icon) icon.textContent = "⏸";
+      if (icon) icon.innerHTML = '<i class="fa-solid fa-pause"></i>';
     }
   };
 
@@ -762,7 +762,7 @@
     ytPlayer.stopVideo();
     isYtPlaying = false;
     const icon = document.getElementById("playPauseIcon");
-    if (icon) icon.textContent = "⏵";
+    if (icon) icon.innerHTML = '<i class="fa-solid fa-play"></i>';
   };
 
   window.ytNext = function () {
@@ -859,7 +859,15 @@
         if (u.status === "idle") emoji = "🌙";
         if (u.status === "dnd") emoji = "🔴";
 
-        li.innerHTML = `${emoji} ${u.name}`;
+        const picUrl = u.picture || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(u.name)}`;
+
+        li.innerHTML = `
+          <div style="position:relative; display:flex; align-items:center;">
+            <img src="${picUrl}" style="width:28px; height:28px; border-radius:50%; object-fit:cover; border:1px solid var(--border);">
+            <span style="position:absolute; bottom:-4px; right:-4px; font-size:12px; background:var(--panel-2); border-radius:50%; width:16px; height:16px; display:flex; align-items:center; justify-content:center;">${emoji}</span>
+          </div>
+          <span style="margin-left:5px;">${u.name}</span>
+        `;
         list.appendChild(li);
       });
     }
@@ -879,12 +887,15 @@
   socket.on("room-info", (info) => {
     const roomTypeSpan = document.getElementById("room-type");
     if (roomTypeSpan) {
-      roomTypeSpan.innerText = info.type === "private" ? "🔒 Private" : "🌍 Public";
+      roomTypeSpan.innerText = info.type === "private" ? "Private" : "Public";
     }
 
-    const stageHeader = document.querySelector(".stage-header h2");
-    if (stageHeader) {
-      stageHeader.innerText = `📚 ${info.name}`;
+    const roomPill = document.getElementById("room-name-pill");
+    if (roomPill) {
+      roomPill.style.display = "block";
+      roomPill.className = `room-pill ${info.type}`;
+      const hostText = info.hostName ? `<span style="font-weight: 400; font-size: 0.85rem; opacity: 0.8; margin-left: 6px;">by ${info.hostName}</span>` : "";
+      roomPill.innerHTML = `${info.name}${hostText}`;
     }
 
     if (info.type === "private" && info.inviteCode) {
@@ -1149,7 +1160,7 @@
     // Hide after 4 seconds
     setTimeout(() => {
       toast.classList.remove("show");
-    }, 10000);
+    }, 4000);
   }
 
   function playNotificationSound() {
@@ -1407,9 +1418,9 @@
     room.classList.toggle("zen-mode");
 
     if (room.classList.contains("zen-mode")) {
-      if (btn) btn.innerHTML = "🧘‍♀️";
+      if (btn) btn.innerHTML = '<i class="fa-solid fa-spa"></i>';
     } else {
-      if (btn) btn.innerHTML = "🧘";
+      if (btn) btn.innerHTML = '<i class="fa-solid fa-spa"></i>';
     }
   };
 
@@ -1460,12 +1471,12 @@
     });
     document.addEventListener("mousemove", (e) => {
       if (isDraggingAgile) {
-         e.preventDefault();
-         currentX_agile = e.clientX - initialX_agile;
-         currentY_agile = e.clientY - initialY_agile;
-         xOffset_agile = currentX_agile;
-         yOffset_agile = currentY_agile;
-         agilePanel.style.transform = `translate(${currentX_agile}px, ${currentY_agile}px)`;
+        e.preventDefault();
+        currentX_agile = e.clientX - initialX_agile;
+        currentY_agile = e.clientY - initialY_agile;
+        xOffset_agile = currentX_agile;
+        yOffset_agile = currentY_agile;
+        agilePanel.style.transform = `translate(${currentX_agile}px, ${currentY_agile}px)`;
       }
     });
   }
@@ -1477,16 +1488,16 @@
   let agileTasks = [];
   let currentAgileTab = "todo";
   let myRole = localStorage.getItem("roomRole") || "none";
-  
+
   // Set initial role dropdown
   document.addEventListener("DOMContentLoaded", () => {
-      const select = document.getElementById("role-selector");
-      if(select && myRole !== "none") select.value = myRole;
+    const select = document.getElementById("role-selector");
+    if (select && myRole !== "none") select.value = myRole;
   });
 
-  window.claimRole = function(role) {
-      myRole = role;
-      localStorage.setItem("roomRole", role);
+  window.claimRole = function (role) {
+    myRole = role;
+    localStorage.setItem("roomRole", role);
   };
 
   window.switchAgileTab = function (tab) {
@@ -1510,18 +1521,18 @@
       li.style.display = "flex";
       li.style.flexDirection = "column";
       li.style.alignItems = "flex-start";
-      
+
       const topRow = document.createElement("div");
       topRow.style.display = "flex";
       topRow.style.width = "100%";
       topRow.style.justifyContent = "space-between";
       topRow.style.alignItems = "center";
-      
+
       // Select for moving status
       const statusSelect = document.createElement("select");
-      statusSelect.innerHTML = `<option value="todo" ${task.status==='todo'?'selected':''}>To Do</option>
-                                <option value="doing" ${task.status==='doing'?'selected':''}>Doing</option>
-                                <option value="done" ${task.status==='done'?'selected':''}>Done</option>`;
+      statusSelect.innerHTML = `<option value="todo" ${task.status === 'todo' ? 'selected' : ''}>To Do</option>
+                                <option value="doing" ${task.status === 'doing' ? 'selected' : ''}>Doing</option>
+                                <option value="done" ${task.status === 'done' ? 'selected' : ''}>Done</option>`;
       statusSelect.style.background = "var(--panel)";
       statusSelect.style.color = "var(--text)";
       statusSelect.style.border = "1px solid var(--border)";
@@ -1529,31 +1540,31 @@
       statusSelect.style.padding = "2px";
       statusSelect.style.fontSize = "0.75rem";
       statusSelect.onchange = (e) => socket.emit("update-task-status", { roomId, taskId: task.id, status: e.target.value });
-      
+
       const deleteBtn = document.createElement("button");
       deleteBtn.className = "goal-delete";
       deleteBtn.innerHTML = "✖";
       deleteBtn.onclick = () => socket.emit("delete-task", { roomId, taskId: task.id });
-      
+
       topRow.appendChild(statusSelect);
       topRow.appendChild(deleteBtn);
-      
+
       const textSpan = document.createElement("span");
       textSpan.textContent = task.text;
       textSpan.style.margin = "8px 0";
       textSpan.style.width = "100%";
       textSpan.style.fontWeight = "500";
       if (task.status === "done") {
-         textSpan.style.textDecoration = "line-through";
-         textSpan.style.opacity = "0.6";
+        textSpan.style.textDecoration = "line-through";
+        textSpan.style.opacity = "0.6";
       }
-      
+
       const bottomRow = document.createElement("div");
       bottomRow.style.display = "flex";
       bottomRow.style.width = "100%";
       bottomRow.style.justifyContent = "space-between";
       bottomRow.style.alignItems = "center";
-      
+
       if (task.assigneeName) {
         bottomRow.innerHTML = `<div style="display:flex; align-items:center; gap:5px;">
            <img src="${task.assigneePicture}" style="width:20px;height:20px;border-radius:50%;" />
@@ -1565,16 +1576,16 @@
         claimBtn.style.padding = "4px 8px";
         claimBtn.style.fontSize = "0.75rem";
         claimBtn.onclick = () => {
-            if (myRole === "none") { alert("Select a role in the Agile Board header first!"); return; }
-            socket.emit("claim-task", { roomId, taskId: task.id, user: userData, role: myRole });
+          if (myRole === "none") { alert("Select a role in the Agile Board header first!"); return; }
+          socket.emit("claim-task", { roomId, taskId: task.id, user: userData, role: myRole });
         };
         bottomRow.appendChild(claimBtn);
       }
-      
+
       li.appendChild(topRow);
       li.appendChild(textSpan);
       li.appendChild(bottomRow);
-      
+
       list.appendChild(li);
     });
   };
@@ -1595,6 +1606,117 @@
     agileTasks = tasks;
     renderAgileTasks();
   });
+
+  /* ================= AI TUTOR ================= */
+
+  let aiHistory = [];
+
+  window.toggleAIPanel = function () {
+    const panel = document.getElementById("ai-panel");
+    if (panel) panel.classList.toggle("active");
+  };
+
+  const aiPanel = document.getElementById("ai-panel");
+  const aiHeader = document.getElementById("ai-header");
+
+  let isDraggingAI = false;
+  let currentX_ai, currentY_ai, initialX_ai, initialY_ai;
+  let xOffset_ai = 0, yOffset_ai = 0;
+
+  if (aiPanel && aiHeader) {
+    aiHeader.addEventListener("mousedown", (e) => {
+      if (e.target === aiHeader || e.target.parentNode === aiHeader) {
+        initialX_ai = e.clientX - xOffset_ai;
+        initialY_ai = e.clientY - yOffset_ai;
+        isDraggingAI = true;
+      }
+    });
+    document.addEventListener("mouseup", () => isDraggingAI = false);
+    document.addEventListener("mousemove", (e) => {
+      if (isDraggingAI) {
+        e.preventDefault();
+        currentX_ai = e.clientX - initialX_ai;
+        currentY_ai = e.clientY - initialY_ai;
+        xOffset_ai = currentX_ai;
+        yOffset_ai = currentY_ai;
+        aiPanel.style.transform = `translate(${currentX_ai}px, ${currentY_ai}px)`;
+      }
+    });
+  }
+
+  window.sendAIMessage = function() {
+    const input = document.getElementById("ai-input");
+    const text = input.value.trim();
+    if (!text) return;
+    
+    appendAIMessage("You", text, true);
+    input.value = "";
+    
+    socket.emit("ai-private-message", { roomId, message: text, history: aiHistory });
+    aiHistory.push({ role: "user", content: text });
+    
+    appendAIMessage("🤖 StudyBot", "Thinking...", false, true);
+  };
+
+  socket.on("ai-private-response", ({ message }) => {
+    const msgs = document.getElementById("ai-messages");
+    if (msgs && msgs.lastChild && msgs.lastChild.id === "ai-thinking") {
+      msgs.removeChild(msgs.lastChild);
+    }
+    
+    appendAIMessage("🤖 StudyBot", message, false);
+    aiHistory.push({ role: "assistant", content: message });
+  });
+
+  function appendAIMessage(user, text, isOwn, isThinking = false) {
+    const msgs = document.getElementById("ai-messages");
+    if (!msgs) return;
+    
+    const div = document.createElement("div");
+    div.className = "msg " + (isOwn ? "own" : "");
+    if (isThinking) div.id = "ai-thinking";
+    
+    div.innerHTML = `<strong style="font-size:0.85rem; color:var(--accent);">${user}</strong><br/><span style="white-space: pre-wrap; font-size: 0.95rem;">${text}</span>`;
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+
+  /* --- AI Panel Resizing --- */
+
+  const aiResize = document.getElementById("ai-resize");
+  let isResizingAI = false;
+  let initialWidth_ai = 350;
+  let initialHeight_ai = 500;
+  let initialMouseX_ai, initialMouseY_ai;
+
+  if (aiResize && aiPanel) {
+    aiResize.addEventListener("mousedown", (e) => {
+      isResizingAI = true;
+      initialWidth_ai = aiPanel.offsetWidth;
+      initialHeight_ai = aiPanel.offsetHeight;
+      initialMouseX_ai = e.clientX;
+      initialMouseY_ai = e.clientY;
+      e.stopPropagation();
+    });
+
+    document.addEventListener("mouseup", () => {
+      isResizingAI = false;
+    });
+
+    document.addEventListener("mousemove", (e) => {
+      if (isResizingAI) {
+        e.preventDefault();
+        const newWidth = initialWidth_ai + (e.clientX - initialMouseX_ai);
+        const newHeight = initialHeight_ai + (e.clientY - initialMouseY_ai);
+
+        if (newWidth > 250) aiPanel.style.width = `${newWidth}px`;
+        if (newHeight > 200) {
+          aiPanel.style.height = `${newHeight}px`;
+          aiPanel.style.maxHeight = 'none';
+        }
+      }
+    });
+  }
 
   /* ================= LEAVE ROOM ================= */
   window.leaveRoom = function () {

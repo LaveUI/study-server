@@ -8,6 +8,7 @@ import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 import { OAuth2Client } from "google-auth-library";
 import dotenv from "dotenv";
+import Groq from "groq-sdk";
 
 import path from "path";
 import { fileURLToPath } from "url";
@@ -23,6 +24,8 @@ import Message from "./models/Message.js";
 
 dotenv.config();
 connectDB();
+
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 const app = express();
 const server = http.createServer(app);
@@ -188,9 +191,9 @@ app.post("/auth/google", async (req, res) => {
     const payload = ticket.getPayload();
 
     const user = {
-      name: payload.name,
+      name: payload.name || payload.email.split('@')[0] || "User",
       email: payload.email,
-      picture: payload.picture,
+      picture: payload.picture || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(payload.email)}`,
     };
 
     const token = jwt.sign(user, process.env.JWT_SECRET, {
@@ -203,27 +206,7 @@ app.post("/auth/google", async (req, res) => {
   }
 });
 
-/* ---------------- Guest Auth (Local Dev) ---------------- */
 
-app.post("/auth/guest", (req, res) => {
-  try {
-    const user = {
-      name: `Guest_${Math.floor(Math.random() * 1000)}`,
-      email: `guest${Date.now()}@example.com`,
-      picture: `https://api.dicebear.com/7.x/bottts/svg?seed=${Date.now()}`,
-    };
-
-    const token = jwt.sign(user, process.env.JWT_SECRET, {
-      expiresIn: "7d",
-    });
-
-    res.json({ token, user });
-  } catch {
-    res.status(500).json({ error: "Failed to create guest session" });
-  }
-});
-
-/* ---------------- Socket Auth ---------------- */
 
 io.use((socket, next) => {
   const token = socket.handshake.auth?.token;
@@ -251,11 +234,15 @@ io.on("connection", (socket) => {
       console.log(`-> JOIN REQUEST FROM: ${socket.user?.name} | ROOM: ${roomId}`);
       if (!roomId || !mongoose.Types.ObjectId.isValid(roomId)) {
         console.log("-> JOIN REJECTED: INVALID ROOM ID");
+        socket.emit("room-full", { message: "Invalid room link." });
         return;
       }
 
       const room = await Room.findById(roomId);
-      if (!room) return;
+      if (!room) {
+        socket.emit("room-full", { message: "Room not found or no longer exists." });
+        return;
+      }
 
       // ===== PRIVATE ROOM CAPACITY CAP (max 8 users) =====
       if (room.type === "private") {
@@ -279,10 +266,13 @@ io.on("connection", (socket) => {
         onlineUsers[roomId] = new Map();
       }
 
-      onlineUsers[roomId].set(socket.user.name, "online");
+      onlineUsers[roomId].set(socket.id, {
+        name: socket.user.name,
+        status: "online",
+        picture: socket.user.picture
+      });
 
-      const publicUsers = Array.from(onlineUsers[roomId].entries())
-        .map(([name, status]) => ({ name, status }))
+      const publicUsers = Array.from(onlineUsers[roomId].values())
         .filter(u => u.status !== "ghost");
 
       io.to(roomId).emit("presence-update", {
@@ -302,7 +292,8 @@ io.on("connection", (socket) => {
       socket.emit("room-info", {
         name: room.name,
         type: room.type,
-        inviteCode: room.inviteCode
+        inviteCode: room.inviteCode,
+        hostName: room.hostName
       });
 
     } catch (err) {
@@ -316,11 +307,12 @@ io.on("connection", (socket) => {
     const { roomId } = socket;
     if (!roomId || !onlineUsers[roomId]) return;
 
-    if (onlineUsers[roomId].has(socket.user.name)) {
-      onlineUsers[roomId].set(socket.user.name, status);
+    if (onlineUsers[roomId].has(socket.id)) {
+      const userData = onlineUsers[roomId].get(socket.id);
+      userData.status = status;
+      onlineUsers[roomId].set(socket.id, userData);
 
-      const publicUsers = Array.from(onlineUsers[roomId].entries())
-        .map(([name, s]) => ({ name, status: s }))
+      const publicUsers = Array.from(onlineUsers[roomId].values())
         .filter(u => u.status !== "ghost");
 
       io.to(roomId).emit("presence-update", {
@@ -395,8 +387,64 @@ io.on("connection", (socket) => {
         message: savedMessage.message,
         createdAt: savedMessage.createdAt,
       });
+
+      // AI Bot Logic
+      if (message.trim().toLowerCase().startsWith("@bot")) {
+        const room = await Room.findById(roomId);
+        if (room && room.type === "private") {
+          const userQuestion = message.replace(/^@bot/i, "").trim();
+
+          const chatCompletion = await groq.chat.completions.create({
+            messages: [
+              { role: "system", content: "You are a helpful study buddy AI in a collaborative study room. Keep responses very brief, friendly, and encouraging. Use markdown for formatting." },
+              { role: "user", content: userQuestion || "Hello!" }
+            ],
+            model: "llama-3.1-8b-instant",
+          });
+
+          const botReply = chatCompletion.choices[0]?.message?.content || "I'm thinking...";
+
+          const savedBotMessage = await Message.create({
+            roomId,
+            user: "🤖 StudyBot",
+            message: botReply,
+          });
+
+          io.to(roomId).emit("chat-message", {
+            user: savedBotMessage.user,
+            message: savedBotMessage.message,
+            createdAt: savedBotMessage.createdAt,
+          });
+        }
+      }
     } catch (err) {
       console.error("Chat error:", err);
+    }
+  });
+
+  /* ================= PRIVATE AI TUTOR ================= */
+
+  socket.on("ai-private-message", async ({ roomId, message, history }) => {
+    try {
+      if (!roomId || !message) return;
+      
+      const messages = [
+        { role: "system", content: "You are a helpful and private AI Study Tutor. Respond strictly to the user in a friendly manner. Use markdown for formatting if needed." },
+        ...(history || []),
+        { role: "user", content: message }
+      ];
+
+      const chatCompletion = await groq.chat.completions.create({
+        messages: messages,
+        model: "llama-3.1-8b-instant",
+      });
+
+      const botReply = chatCompletion.choices[0]?.message?.content || "I'm thinking...";
+
+      socket.emit("ai-private-response", { message: botReply });
+    } catch (err) {
+      console.error("AI Private error:", err);
+      socket.emit("ai-private-response", { message: "Error contacting AI Tutor." });
     }
   });
 
@@ -411,11 +459,11 @@ io.on("connection", (socket) => {
 
   socket.on("add-agile-task", async ({ roomId, text }) => {
     if (!roomId || !text) return;
-    
+
     try {
       const room = await Room.findById(roomId);
       if (!room) return;
-      
+
       room.tasks.push({
         id: Date.now().toString(),
         text: text,
@@ -424,10 +472,10 @@ io.on("connection", (socket) => {
         assigneeRole: null,
         assigneePicture: null
       });
-      
+
       await room.save();
       io.to(roomId).emit("agile-tasks-update", room.tasks);
-    } catch(err) {
+    } catch (err) {
       console.error("Task add failed:", err);
     }
   });
@@ -438,14 +486,14 @@ io.on("connection", (socket) => {
     try {
       const room = await Room.findById(roomId);
       if (!room) return;
-      
+
       const task = room.tasks.find(t => t.id === taskId);
       if (task) {
         task.status = status;
         await room.save();
         io.to(roomId).emit("agile-tasks-update", room.tasks);
       }
-    } catch(err) {}
+    } catch (err) { }
   });
 
   socket.on("claim-task", async ({ roomId, taskId, user, role }) => {
@@ -454,7 +502,7 @@ io.on("connection", (socket) => {
     try {
       const room = await Room.findById(roomId);
       if (!room) return;
-      
+
       const task = room.tasks.find(t => t.id === taskId);
       if (task) {
         task.assigneeName = user.name;
@@ -463,7 +511,7 @@ io.on("connection", (socket) => {
         await room.save();
         io.to(roomId).emit("agile-tasks-update", room.tasks);
       }
-    } catch(err) {}
+    } catch (err) { }
   });
 
   socket.on("delete-task", async ({ roomId, taskId }) => {
@@ -472,11 +520,11 @@ io.on("connection", (socket) => {
     try {
       const room = await Room.findById(roomId);
       if (!room) return;
-      
+
       room.tasks = room.tasks.filter(t => t.id !== taskId);
       await room.save();
       io.to(roomId).emit("agile-tasks-update", room.tasks);
-    } catch(err) {}
+    } catch (err) { }
   });
 
   /* ================= TIMER ================= */
@@ -618,10 +666,9 @@ io.on("connection", (socket) => {
     io.to(roomId).emit("user-disconnected", socket.id);
 
     if (onlineUsers[roomId]) {
-      onlineUsers[roomId].delete(socket.user.name);
+      onlineUsers[roomId].delete(socket.id);
 
-      const publicUsers = Array.from(onlineUsers[roomId].entries())
-        .map(([name, status]) => ({ name, status }))
+      const publicUsers = Array.from(onlineUsers[roomId].values())
         .filter(u => u.status !== "ghost");
 
       io.to(roomId).emit("presence-update", {

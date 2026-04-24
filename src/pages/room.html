@@ -5,20 +5,23 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Study Room | Focus Realm</title>
-  <meta name="description" content="Enter a real-time collaborative study room in Focus Realm. Use the Pomodoro timer, listen to Lofi, and track tasks with your team.">
+  <meta name="google-site-verification" content="KKCwdMY94cyuw3DUdFUAUvU1pGLT3HM30m6GYk16O4I" />
+  <meta name="description"
+    content="Enter a real-time collaborative study room in Focus Realm. Use the Pomodoro timer, listen to Lofi, and track tasks with your team.">
   <meta name="robots" content="noindex, nofollow">
 
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website">
   <meta property="og:title" content="Study Room | Focus Realm">
-  <meta property="og:description" content="Join a collaborative study session in Focus Realm. Real-time lofi music, pomodoro, and team tasks.">
+  <meta property="og:description"
+    content="Join a collaborative study session in Focus Realm. Real-time lofi music, pomodoro, and team tasks.">
   <meta property="og:image" content="https://focus-realm.onrender.com/assets/logo.png">
 
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-SZL123L8ND"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
+    function gtag() { dataLayer.push(arguments); }
     gtag('js', new Date());
 
     gtag('config', 'G-SZL123L8ND');
@@ -26,7 +29,10 @@
   <link rel="icon" type="image/png" href="../assets/logo.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="../css/style.css">
 </head>
 
@@ -60,10 +66,10 @@
         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
           <p id="online-count" class="muted" style="margin: 0;">Online: 0</p>
           <select id="user-status" class="status-dropdown">
-            <option value="online">🟢 Online</option>
-            <option value="idle">🌙 Idle</option>
-            <option value="dnd">🔴 DND</option>
-            <option value="ghost">👻 Ghost</option>
+            <option value="online">Online</option>
+            <option value="idle">Idle</option>
+            <option value="dnd">DND</option>
+            <option value="ghost">Ghost</option>
           </select>
         </div>
       </div>
@@ -76,10 +82,17 @@
       <div class="stage-header">
         <div style="display:flex; align-items:center; gap:10px;">
           <a href="dashboard.html" style="text-decoration:none;" title="Back to Dashboard">
-             <img src="../assets/logo.png" style="width: 32px; height: 32px; border-radius: 6px; box-shadow: 0 2px 10px rgba(0,255,255,0.3); display: block; filter: brightness(1.2);">
+            <img src="../assets/logo.png"
+              style="width: 32px; height: 32px; border-radius: 6px; box-shadow: 0 2px 10px rgba(0,255,255,0.3); display: block; filter: brightness(1.2);">
           </a>
-          <h2 style="margin:0; background: linear-gradient(135deg, #a78bfa, #60a5fa); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; font-size: 1.5rem;">Focus Realm</h2>
+          <h2
+            style="margin:0; background: linear-gradient(135deg, #a78bfa, #60a5fa); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; font-size: 1.5rem;">
+            Focus Realm</h2>
         </div>
+        
+        <!-- NEW PILL -->
+        <div id="room-name-pill" class="room-pill" style="display: none;"></div>
+
         <div class="stage-actions">
           <span id="room-type" class="muted"></span>
           <button onclick="toggleTheme()">🌗</button>
@@ -101,7 +114,7 @@
     <aside class="chat-panel">
 
       <div class="chat-header">
-        <h4>💬 Room Chat</h4>
+        <h4>Room Chat</h4>
       </div>
 
       <div id="messages" class="messages"></div>
@@ -122,36 +135,42 @@
 
   <div class="floating-controls">
 
-    <button id="btn-mic" onclick="toggleMic()">🎤</button>
-    <button id="btn-camera" onclick="toggleCamera()">📷</button>
-    <button id="btn-screen" onclick="shareScreen()">🖥</button>
-    <button id="btn-bg" onclick="toggleBgPanel()">🎨</button>
+    <button id="btn-mic" onclick="toggleMic()"><i class="fa-solid fa-microphone"></i></button>
+    <button id="btn-camera" onclick="toggleCamera()"><i class="fa-solid fa-video"></i></button>
+    <button id="btn-screen" onclick="shareScreen()"><i class="fa-solid fa-display"></i></button>
+    <button id="btn-bg" onclick="toggleBgPanel()"><i class="fa-solid fa-palette"></i></button>
 
     <!-- TIMER -->
     <div id="btn-timer" class="timer-mini">
       <span id="timer">25:00</span>
-      <button onclick="openTimerModal()">⏱</button>
+      <button onclick="openTimerModal()"><i class="fa-solid fa-stopwatch"></i></button>
     </div>
 
     <!-- MUSIC -->
     <div class="music-mini">
-      <button onclick="toggleMusicPanel()">🎧</button>
+      <button onclick="toggleMusicPanel()"><i class="fa-solid fa-headphones"></i></button>
     </div>
 
     <!-- GOALS -->
     <div class="goals-mini">
-      <button onclick="toggleAgilePanel()" title="Agile Board">📋</button>
+      <button onclick="toggleAgilePanel()" title="Agile Board"><i class="fa-solid fa-list-check"></i></button>
     </div>
 
     <!-- ZEN MODE -->
     <div class="zen-mini">
-      <button id="btn-zen" onclick="toggleZenMode()" title="Toggle Zen Mode">🧘</button>
+      <button id="btn-zen" onclick="toggleZenMode()" title="Toggle Zen Mode"><i class="fa-solid fa-spa"></i></button>
+    </div>
+
+    <!-- AI TUTOR -->
+    <div class="ai-mini">
+      <button onclick="toggleAIPanel()" title="AI Tutor"><i class="fa-solid fa-robot"></i></button>
     </div>
 
     <!-- LEAVE ROOM -->
     <div class="leave-mini" style="margin-left: auto;">
-      <button onclick="leaveRoom()" title="Disconnect" style="background: #ed4245; color: white; border: none; box-shadow: 0 4px 15px rgba(237, 66, 69, 0.3); padding: 8px;">
-        <img src="../assets/logout.png" alt="Logout" style="width: 20px; height: 20px; vertical-align: middle;">
+      <button onclick="leaveRoom()" title="Disconnect"
+        style="background: #ed4245; color: white; border: none; box-shadow: 0 4px 15px rgba(237, 66, 69, 0.3); padding: 8px;">
+        <i class="fa-solid fa-arrow-right-from-bracket"></i>
       </button>
     </div>
 
@@ -167,8 +186,9 @@
     <div id="agile-header" class="goals-header">
       <div class="drag-handle">⋮⋮</div>
       <h3 style="flex: 1; text-align: left; margin-left: 10px;">Agile Board</h3>
-      
-      <select id="role-selector" onchange="claimRole(this.value)" style="margin-right: 15px; background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 4px;">
+
+      <select id="role-selector" onchange="claimRole(this.value)"
+        style="margin-right: 15px; background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 4px;">
         <option value="none">Set Your Role</option>
         <option value="Frontend">Frontend</option>
         <option value="Backend">Backend</option>
@@ -176,7 +196,7 @@
         <option value="DevOps">DevOps</option>
         <option value="Reviewer">Reviewer</option>
       </select>
-      
+
       <button class="close-btn" onclick="toggleAgilePanel()">✖</button>
     </div>
 
@@ -193,8 +213,31 @@
     </div>
 
     <!-- AGILE TASK LIST -->
-    <ul id="agile-task-list" class="goals-list" style="margin-top: 10px; gap: 8px; display: flex; flex-direction: column;"></ul>
+    <ul id="agile-task-list" class="goals-list"
+      style="margin-top: 10px; gap: 8px; display: flex; flex-direction: column;"></ul>
 
+  </div>
+
+  <!-- ======================================================
+     AI TUTOR PANEL (DRAGGABLE)
+  ======================================================= -->
+
+  <div id="ai-panel" class="goals-panel" style="width: 350px; max-height: 500px; display: flex; flex-direction: column;">
+    <div id="ai-header" class="goals-header">
+      <div class="drag-handle">⋮⋮</div>
+      <h3 style="flex: 1; text-align: left; margin-left: 10px;">AI Tutor (Private)</h3>
+      <button class="close-btn" onclick="toggleAIPanel()">✖</button>
+    </div>
+    
+    <div id="ai-messages" class="messages" style="flex: 1; overflow-y: auto; margin-bottom: 10px; padding: 5px; display: flex; flex-direction: column; gap: 8px;">
+       <div class="msg" style="background: var(--panel-2);"><strong>StudyBot</strong><br/>Hello! I'm your private AI Tutor. What would you like to learn today?</div>
+    </div>
+    
+    <div class="input-row" style="margin-top: auto; margin-bottom: 0;">
+      <input id="ai-input" placeholder="Ask AI privately..." onkeydown="if(event.key === 'Enter') sendAIMessage()" autocomplete="off" />
+      <button onclick="sendAIMessage()">➤</button>
+    </div>
+    <div id="ai-resize" class="resize-handle">↘</div>
   </div>
 
   <!-- ======================================================
@@ -237,10 +280,10 @@
 
     <div class="music-controls" style="display: none;" id="musicControlsArea">
       <div class="playback-btns">
-        <button onclick="ytPrev()">⏮</button>
-        <button onclick="ytPlay()"><span id="playPauseIcon">⏸</span></button>
-        <button onclick="ytStop()">⏹</button>
-        <button onclick="ytNext()">⏭</button>
+        <button onclick="ytPrev()"><i class="fa-solid fa-backward-step"></i></button>
+        <button onclick="ytPlay()"><span id="playPauseIcon"><i class="fa-solid fa-pause"></i></span></button>
+        <button onclick="ytStop()"><i class="fa-solid fa-stop"></i></button>
+        <button onclick="ytNext()"><i class="fa-solid fa-forward-step"></i></button>
       </div>
 
       <div class="volume-control">
