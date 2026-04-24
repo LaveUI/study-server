@@ -25,7 +25,7 @@ import Message from "./models/Message.js";
 dotenv.config();
 connectDB();
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+const groq = process.env.GROQ_API_KEY ? new Groq({ apiKey: process.env.GROQ_API_KEY }) : null;
 
 const app = express();
 const server = http.createServer(app);
@@ -394,6 +394,20 @@ io.on("connection", (socket) => {
         if (room && room.type === "private") {
           const userQuestion = message.replace(/^@bot/i, "").trim();
 
+          if (!groq) {
+            const savedBotMessage = await Message.create({
+              roomId,
+              user: "🤖 StudyBot",
+              message: "I am offline. The server is missing its GROQ_API_KEY.",
+            });
+            io.to(roomId).emit("chat-message", {
+              user: savedBotMessage.user,
+              message: savedBotMessage.message,
+              createdAt: savedBotMessage.createdAt,
+            });
+            return;
+          }
+
           const chatCompletion = await groq.chat.completions.create({
             messages: [
               { role: "system", content: "You are a helpful study buddy AI in a collaborative study room. Keep responses very brief, friendly, and encouraging. Use markdown for formatting." },
@@ -428,6 +442,11 @@ io.on("connection", (socket) => {
     try {
       if (!roomId || !message) return;
       
+      if (!groq) {
+        socket.emit("ai-private-response", { message: "AI Tutor is currently disabled because the server is missing its GROQ_API_KEY." });
+        return;
+      }
+
       const messages = [
         { role: "system", content: "You are a helpful and private AI Study Tutor. Respond strictly to the user in a friendly manner. Use markdown for formatting if needed." },
         ...(history || []),
