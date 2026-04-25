@@ -73,7 +73,7 @@ let roomGoals = {};
 app.use(express.static(path.join(__dirname, "../src")));
 
 app.get("/", (req, res) => {
-  res.redirect("/pages/dashboard.html");
+  res.sendFile(path.join(__dirname, "../src/pages/login.html"));
 });
 
 /* ---------- Render Keep-Alive (Free Tier Fix) ---------- */
