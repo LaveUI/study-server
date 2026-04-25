@@ -7,7 +7,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (!token || !userData) {
     localStorage.clear();
-    window.location.href = "login.html";
+    window.location.href = "/";
     return;
   }
 
@@ -34,7 +34,7 @@ document.addEventListener("DOMContentLoaded", () => {
     logoutBtn.addEventListener("click", () => {
       localStorage.removeItem("token");
       localStorage.removeItem("user");
-      window.location.href = "login.html";
+      window.location.href = "/";
     });
   }
 
@@ -152,7 +152,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
           const noMedia = div.querySelector('.join-nomedia-cb')?.checked;
           const urlParams = noMedia ? `&nomedia=true` : `&nomedia=false`;
-          window.location.href = `room.html?roomId=${room._id}${urlParams}`;
+          window.location.href = `/pages/room.html?roomId=${room._id}${urlParams}`;
         });
 
         roomsList.appendChild(div);
@@ -226,7 +226,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
           const noMedia = div.querySelector('.join-nomedia-cb')?.checked;
           const urlParams = noMedia ? `&nomedia=true` : `&nomedia=false`;
-          window.location.href = `room.html?roomId=${room._id}${urlParams}`;
+          window.location.href = `/pages/room.html?roomId=${room._id}${urlParams}`;
         });
 
         const deleteBtn = div.querySelector('.delete-btn');
@@ -312,7 +312,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       closeRoomModal();
 
-      window.location.href = `room.html?roomId=${data._id}${urlParams}`;
+      window.location.href = `/pages/room.html?roomId=${data._id}${urlParams}`;
 
     } catch (err) {
       alert("Something went wrong.");

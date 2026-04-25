@@ -58,7 +58,7 @@
       const res = await fetch(`${API}/rooms/invite/${invite}`);
       if (!res.ok) {
         alert("Invalid invite link");
-        window.location.href = "dashboard.html";
+        window.location.href = "/pages/dashboard.html";
         return null;
       }
       const room = await res.json();
@@ -881,7 +881,7 @@
 
   socket.on("room-full", ({ message }) => {
     alert(`🚫 ${message}\nYou will be redirected to the Dashboard.`);
-    window.location.href = "dashboard.html";
+    window.location.href = "/pages/dashboard.html";
   });
 
   socket.on("room-info", (info) => {
@@ -1722,7 +1722,7 @@
   window.leaveRoom = function () {
     if (confirm("Are you sure you want to leave the room?")) {
       socket.disconnect();
-      window.location.href = "dashboard.html";
+      window.location.href = "/pages/dashboard.html";
     }
   };
 

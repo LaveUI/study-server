@@ -22,7 +22,7 @@ async function handleGoogleLogin(response) {
     localStorage.setItem("token", data.token);
     localStorage.setItem("user", JSON.stringify(data.user));
 
-    window.location.href = "dashboard.html";
+    window.location.href = "/pages/dashboard.html";
   } catch (err) {
     console.error(err);
     alert("Something went wrong during login");
