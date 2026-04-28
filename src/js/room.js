@@ -88,18 +88,6 @@
     iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
   };
 
-  // Creates a silent audio track (real but inaudible) used as a placeholder
-  // in peer connections so the audio sender slot always exists in the SDP.
-  function createSilentAudioTrack() {
-    const ctx = new AudioContext();
-    const oscillator = ctx.createOscillator();
-    const dst = ctx.createMediaStreamDestination();
-    oscillator.connect(dst);
-    oscillator.start();
-    const track = dst.stream.getAudioTracks()[0];
-    track.enabled = false; // Silent
-    return track;
-  }
 
   function updateVideoLayout() {
     if (!videoGrid) return;
@@ -342,17 +330,17 @@
     const peer = new RTCPeerConnection(rtcConfig);
     peers[targetId] = peer;
 
-    // Always add a silent audio placeholder so the SDP always has an audio slot.
-    // This means replaceTrack() works on first unmute without needing renegotiation.
-    const silentAudio = createSilentAudioTrack();
-    const audioSender = peer.addTrack(silentAudio, localStream || new MediaStream());
+    // Audio: pre-create an audio transceiver so the audio slot is in the SDP
+    // from the start. This lets replaceTrack() work on first unmute without
+    // needing a full SDP renegotiation.
+    const audioTransceiver = peer.addTransceiver('audio', { direction: 'sendrecv' });
 
-    // If we already have a real audio track (mic on), replace the silent one immediately
+    // If mic is already active (user rejoined with mic on), set it immediately
     if (localStream) {
       const currentAudio = localStream.getAudioTracks()[0];
-      if (currentAudio) audioSender.replaceTrack(currentAudio);
+      if (currentAudio) audioTransceiver.sender.replaceTrack(currentAudio);
 
-      // Add video track if available
+      // Video: use addTrack with the stream so ontrack fires with event.streams[0]
       const videoTrack = localStream.getVideoTracks()[0];
       if (videoTrack) peer.addTrack(videoTrack, localStream);
     }
@@ -403,8 +391,17 @@
       updateVideoLayout();
     }
 
+    // remoteStreams holds the combined audio+video stream per peer
+    const remoteStreams = remoteStreams || {};
+
     peer.ontrack = (event) => {
-      const stream = event.streams[0];
+      const track = event.track;
+
+      // Build or reuse a per-peer MediaStream so audio & video tracks coexist
+      if (!peer._remoteStream) peer._remoteStream = new MediaStream();
+      peer._remoteStream.addTrack(track);
+
+      // Only build the DOM tile once (on first track, usually video)
       let wrapper = document.getElementById(`wrapper-${targetId}`);
       let videoEl = document.getElementById(`video-${targetId}`);
 
@@ -431,7 +428,7 @@
         muteIcon.className = "mute-icon-overlay";
         muteIcon.id = `mute-icon-${targetId}`;
         muteIcon.innerHTML = '<i class="fa-solid fa-microphone-slash"></i>';
-        muteIcon.style.display = "none"; // dynamically toggled by network
+        muteIcon.style.display = "none";
 
         const nameLabel = document.createElement("div");
         nameLabel.className = "name-label";
@@ -444,15 +441,22 @@
         wrapper.appendChild(nameLabel);
         videoGrid?.appendChild(wrapper);
         updateVideoLayout();
+      } else {
+        // Wrapper already exists — re-fetch videoEl
+        videoEl = videoEl || document.getElementById(`video-${targetId}`);
       }
 
-      videoEl.srcObject = stream;
-      videoEl.onloadedmetadata = () => {
-        videoEl.play().catch(e => console.error("Autoplay thwarted:", e));
-      };
+      // Always keep srcObject pointing to the combined stream
+      if (videoEl) {
+        videoEl.srcObject = peer._remoteStream;
+        videoEl.onloadedmetadata = () => {
+          videoEl.play().catch(e => console.error("Autoplay blocked:", e));
+        };
+      }
 
-      if (stream.getAudioTracks().length > 0) {
-        monitorAudioLevel(stream, targetId);
+      // Monitor audio levels for glow effect
+      if (track.kind === "audio") {
+        monitorAudioLevel(peer._remoteStream, targetId);
       }
     };
 
@@ -583,11 +587,14 @@
         // Hot-swap audio track in every active peer connection
         for (const peerId in peers) {
           const peer = peers[peerId];
-          const sender = peer.getSenders().find(s => s.track && s.track.kind === "audio");
-          if (sender) {
-            await sender.replaceTrack(newAudioTrack);
+          // Find audio transceiver (pre-created in createPeer via addTransceiver)
+          const audioTransceiver = peer.getTransceivers().find(t =>
+            t.receiver && t.receiver.track && t.receiver.track.kind === "audio"
+          );
+          if (audioTransceiver) {
+            await audioTransceiver.sender.replaceTrack(newAudioTrack);
           } else {
-            // No audio sender yet — add one (first unmute after joining)
+            // Fallback if transceiver not found
             peer.addTrack(newAudioTrack, localStream);
           }
         }
