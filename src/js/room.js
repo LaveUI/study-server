@@ -328,14 +328,18 @@
     const peer = new RTCPeerConnection(rtcConfig);
     peers[targetId] = peer;
 
+    const stream = localStream || new MediaStream();
+    const audioTransceiver = peer.addTransceiver('audio', { direction: 'sendrecv', streams: [stream] });
+    const videoTransceiver = peer.addTransceiver('video', { direction: 'sendrecv', streams: [stream] });
+
     if (localStream) {
-      localStream.getTracks().forEach(track => {
-        peer.addTrack(track, localStream);
-      });
+      const currentAudio = localStream.getAudioTracks()[0];
+      if (currentAudio) audioTransceiver.sender.replaceTrack(currentAudio);
     }
 
-    if (screenTrack) {
-      peer.addTrack(screenTrack, localStream || new MediaStream());
+    const currentVideo = (isScreenSharing && screenTrack) ? screenTrack : (localStream ? localStream.getVideoTracks()[0] : null);
+    if (currentVideo) {
+      videoTransceiver.sender.replaceTrack(currentVideo);
     }
 
     peer.onicecandidate = (event) => {
@@ -560,12 +564,9 @@
         // Hot-swap track in every active peer connection
         for (const peerId in peers) {
           const peer = peers[peerId];
-          const sender = peer.getSenders().find(s => s.track && s.track.kind === "audio");
-          if (sender) {
-            await sender.replaceTrack(newAudioTrack);
-          } else {
-            // If no audio sender exists yet, add it
-            peer.addTrack(newAudioTrack, localStream);
+          const transceiver = peer.getTransceivers().find(t => t.receiver.track.kind === "audio");
+          if (transceiver && transceiver.sender) {
+            await transceiver.sender.replaceTrack(newAudioTrack);
           }
         }
 
@@ -1329,9 +1330,9 @@
 
     // Restore camera to peers if we have one, otherwise replace with null
     Object.values(peers).forEach(peer => {
-      const sender = peer.getSenders().find(s => s.track);
-      if (sender) {
-        sender.replaceTrack(cameraTrack || null);
+      const transceiver = peer.getTransceivers().find(t => t.receiver.track.kind === "video");
+      if (transceiver && transceiver.sender) {
+        transceiver.sender.replaceTrack(cameraTrack || null);
       }
     });
   };
