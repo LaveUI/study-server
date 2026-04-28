@@ -22,7 +22,13 @@ async function handleGoogleLogin(response) {
     localStorage.setItem("token", data.token);
     localStorage.setItem("user", JSON.stringify(data.user));
 
-    window.location.href = "/pages/dashboard.html";
+    const redirectUrl = localStorage.getItem("redirectAfterLogin");
+    if (redirectUrl) {
+      localStorage.removeItem("redirectAfterLogin");
+      window.location.href = redirectUrl;
+    } else {
+      window.location.href = "/pages/dashboard.html";
+    }
   } catch (err) {
     console.error(err);
     alert("Something went wrong during login");

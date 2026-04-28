@@ -20,7 +20,8 @@
   const userObj = localStorage.getItem("user");
 
   if (!token || !userObj) {
-    window.location.href = "login.html";
+    localStorage.setItem("redirectAfterLogin", window.location.href);
+    window.location.href = "/";
     return;
   }
 
@@ -86,6 +87,19 @@
   const rtcConfig = {
     iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
   };
+
+  // Creates a silent audio track (real but inaudible) used as a placeholder
+  // in peer connections so the audio sender slot always exists in the SDP.
+  function createSilentAudioTrack() {
+    const ctx = new AudioContext();
+    const oscillator = ctx.createOscillator();
+    const dst = ctx.createMediaStreamDestination();
+    oscillator.connect(dst);
+    oscillator.start();
+    const track = dst.stream.getAudioTracks()[0];
+    track.enabled = false; // Silent
+    return track;
+  }
 
   function updateVideoLayout() {
     if (!videoGrid) return;
@@ -328,18 +342,23 @@
     const peer = new RTCPeerConnection(rtcConfig);
     peers[targetId] = peer;
 
-    const stream = localStream || new MediaStream();
-    const audioTransceiver = peer.addTransceiver('audio', { direction: 'sendrecv', streams: [stream] });
-    const videoTransceiver = peer.addTransceiver('video', { direction: 'sendrecv', streams: [stream] });
+    // Always add a silent audio placeholder so the SDP always has an audio slot.
+    // This means replaceTrack() works on first unmute without needing renegotiation.
+    const silentAudio = createSilentAudioTrack();
+    const audioSender = peer.addTrack(silentAudio, localStream || new MediaStream());
 
+    // If we already have a real audio track (mic on), replace the silent one immediately
     if (localStream) {
       const currentAudio = localStream.getAudioTracks()[0];
-      if (currentAudio) audioTransceiver.sender.replaceTrack(currentAudio);
+      if (currentAudio) audioSender.replaceTrack(currentAudio);
+
+      // Add video track if available
+      const videoTrack = localStream.getVideoTracks()[0];
+      if (videoTrack) peer.addTrack(videoTrack, localStream);
     }
 
-    const currentVideo = (isScreenSharing && screenTrack) ? screenTrack : (localStream ? localStream.getVideoTracks()[0] : null);
-    if (currentVideo) {
-      videoTransceiver.sender.replaceTrack(currentVideo);
+    if (screenTrack) {
+      peer.addTrack(screenTrack, localStream || new MediaStream());
     }
 
     peer.onicecandidate = (event) => {
@@ -561,12 +580,15 @@
         localStream.addTrack(newAudioTrack);
         isMicHardMuted = false;
 
-        // Hot-swap track in every active peer connection
+        // Hot-swap audio track in every active peer connection
         for (const peerId in peers) {
           const peer = peers[peerId];
-          const transceiver = peer.getTransceivers().find(t => t.receiver.track.kind === "audio");
-          if (transceiver && transceiver.sender) {
-            await transceiver.sender.replaceTrack(newAudioTrack);
+          const sender = peer.getSenders().find(s => s.track && s.track.kind === "audio");
+          if (sender) {
+            await sender.replaceTrack(newAudioTrack);
+          } else {
+            // No audio sender yet — add one (first unmute after joining)
+            peer.addTrack(newAudioTrack, localStream);
           }
         }
 
@@ -1330,9 +1352,9 @@
 
     // Restore camera to peers if we have one, otherwise replace with null
     Object.values(peers).forEach(peer => {
-      const transceiver = peer.getTransceivers().find(t => t.receiver.track.kind === "video");
-      if (transceiver && transceiver.sender) {
-        transceiver.sender.replaceTrack(cameraTrack || null);
+      const sender = peer.getSenders().find(s => s.track && s.track.kind === "video");
+      if (sender) {
+        sender.replaceTrack(cameraTrack || null);
       }
     });
   };
